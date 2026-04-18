@@ -2,11 +2,11 @@
 -- 创建时间: 2024-04-18
 
 -- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS employee_assistant
+CREATE DATABASE IF NOT EXISTS db_ea
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE employee_assistant;
+USE db_ea   ;
 
 -- 1. 政策文档表 (policy)
 CREATE TABLE IF NOT EXISTS policy (

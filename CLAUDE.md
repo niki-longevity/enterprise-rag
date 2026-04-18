@@ -1,31 +1,61 @@
-# 企业内部员工助手智能体 - 项目记忆
+# Karpathy Guidelines
 
-## 开发约束
+Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
-### 核心规则
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-#### 1. 严禁过度开发
-- 每次只做当前计划内的最小修改
-- 不在计划外添加任何功能或优化
-- 严格按照分步计划执行，不超前
+## 1. Think Before Coding
 
-#### 2. 小步开发原则
-- 每次只完成一个小步骤
-- 完成后说明做了什么工作
-- 完成后立即验证，Git提交
-- 确认没问题再进入下一步
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-#### 3. 没有明确指令不写代码
-- 用户没有明确让写代码时，坚决不写
-- 只做规划和讨论，不执行代码修改
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-### 历史教训
+## 2. Simplicity First
 
-#### 已避免的问题
-- 不要随意添加MyBatis Plus拦截器等计划外的配置
-- 不要超前实现功能
-- Service层必须接口+实现类分离，遵循开发规范
+**Minimum code that solves the problem. Nothing speculative.**
 
----
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
 
-**最后更新**: 2024-04-17
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
