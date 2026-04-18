@@ -3,6 +3,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from src.agent.graph import agent_graph
+from src.agent.state import AgentState
 
 router = APIRouter()
 
@@ -30,10 +32,22 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     # 接收Java服务的对话请求，调用LangGraph Agent处理
-    # TODO: 实现LangGraph调用逻辑
     session_id = request.session_id or f"sess_{request.user_id}_{id(request)}"
+
+    # 构建初始状态
+    initial_state: AgentState = {
+        "user_id": request.user_id,
+        "session_id": session_id,
+        "message": request.message,
+        "intent": None,
+        "answer": None,
+    }
+
+    # 调用LangGraph
+    result = agent_graph.invoke(initial_state)
+
     return ChatResponse(
-        reply=f"收到消息：{request.message}",
+        reply=result.get("answer", ""),
         session_id=session_id,
         attachments=None
     )
