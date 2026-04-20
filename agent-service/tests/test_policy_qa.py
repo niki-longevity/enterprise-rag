@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # 添加项目根目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.rag.init_vector_store import init_vector_store
 from src.agent.graph import agent_graph
