@@ -57,3 +57,11 @@ def create_agent_graph():
 
 # 全局Agent图实例
 agent_graph = create_agent_graph()
+
+# 流程可视化
+try:
+    graph_image_bytes = agent_graph.get_graph().draw_mermaid_png()
+    with open("graph.png", "wb") as f:
+        f.write(graph_image_bytes)
+except Exception as e:
+    print("⚠️ 生成流程图失败，可能是缺失依赖（需确联接互联网）:", e)
