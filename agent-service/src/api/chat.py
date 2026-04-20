@@ -40,6 +40,9 @@ def chat(request: ChatRequest):
         "session_id": session_id,
         "message": request.message,
         "intent": None,
+        "retrieved_docs": [],
+        "resources": [],
+        "ticket": None,
         "answer": None,
     }
 

@@ -55,6 +55,11 @@ public interface TicketService {
     boolean rejectTicket(Long id, String approvedBy);
 
     /**
+     * 根据工单号审批工单
+     */
+    Ticket approveTicket(String ticketNo, boolean approved, String approvedBy);
+
+    /**
      * 删除工单
      */
     boolean removeById(Long id);

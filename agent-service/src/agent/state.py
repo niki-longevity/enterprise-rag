@@ -11,16 +11,15 @@ class AgentState(TypedDict):
 
     # 需求理解结果
     intent: Optional[str]  # 用户意图：POLICY_QA, RESOURCE_QUERY, TICKET_CREATE, CHITCHAT
-    # tasks: List[Task]  # 后续添加：拆解后的任务列表
-
-    # 工具调用相关
-    # current_task_index: int  # 后续添加：当前处理的任务索引
-    # tool_calls: List  # 后续添加：工具调用记录
-    # tool_results: List  # 后续添加：工具调用结果
 
     # RAG检索相关
-    # retrieved_docs: List  # 后续添加：检索到的政策文档
+    retrieved_docs: List[dict]  # 检索到的政策文档
+
+    # 资源查询相关
+    resources: List[dict]  # 查询到的资源列表
+
+    # 工单创建相关
+    ticket: Optional[dict]  # 创建的工单信息
 
     # 最终输出
     answer: Optional[str]  # 最终回答内容
-    # attachments: List  # 后续添加：附件信息（政策文档、工单等）

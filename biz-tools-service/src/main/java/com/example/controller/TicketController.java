@@ -56,4 +56,31 @@ public class TicketController {
     public Ticket getById(@PathVariable Long id) {
         return ticketService.getById(id);
     }
+
+    /**
+     * 创建工单
+     *
+     * @param ticket 工单信息
+     * @return 创建的工单
+     */
+    @PostMapping
+    public Ticket createTicket(@RequestBody Ticket ticket) {
+        return ticketService.createTicket(ticket);
+    }
+
+    /**
+     * 审批工单
+     *
+     * @param ticketNo 工单号
+     * @param approved 是否批准
+     * @param approvedBy 审批人
+     * @return 审批后的工单
+     */
+    @PostMapping("/no/{ticketNo}/approve")
+    public Ticket approveTicket(
+            @PathVariable String ticketNo,
+            @RequestParam boolean approved,
+            @RequestParam String approvedBy) {
+        return ticketService.approveTicket(ticketNo, approved, approvedBy);
+    }
 }

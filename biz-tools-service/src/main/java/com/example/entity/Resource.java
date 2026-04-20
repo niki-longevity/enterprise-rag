@@ -25,6 +25,12 @@ public class Resource {
     // 状态: AVAILABLE, IN_USE, MAINTENANCE
     private String status;
 
+    // 总数
+    private Integer quantity;
+
+    // 可用数量
+    private Integer availableQuantity;
+
     // 描述
     private String description;
 

@@ -17,14 +17,8 @@ class JavaServiceClient:
         self.client.close()
 
     def search_policies(self, keyword: str) -> List[Dict[str, Any]]:
-        # 搜索政策文档
-        # GET /api/internal/policies/search?keyword=xxx
-        url = f"{self.base_url}/api/internal/policies/search"
-        params = {"keyword": keyword}
-        resp = self.client.get(url, params=params)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("policies", [])
+        # 搜索政策文档（暂未实现）
+        return []
 
     def query_resources(
         self,
@@ -32,17 +26,18 @@ class JavaServiceClient:
         status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         # 查询资源
-        # GET /api/internal/resources?type=xxx&status=xxx
-        url = f"{self.base_url}/api/internal/resources"
-        params = {}
-        if resource_type:
-            params["type"] = resource_type
-        if status:
-            params["status"] = status
-        resp = self.client.get(url, params=params)
+        # GET /api/resources
+        if status == "AVAILABLE":
+            url = f"{self.base_url}/api/resources/available"
+            resp = self.client.get(url)
+        elif resource_type:
+            url = f"{self.base_url}/api/resources/type/{resource_type}"
+            resp = self.client.get(url)
+        else:
+            url = f"{self.base_url}/api/resources"
+            resp = self.client.get(url)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("resources", [])
+        return resp.json()
 
     def create_ticket(
         self,
@@ -52,23 +47,24 @@ class JavaServiceClient:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         # 创建工单
-        # POST /api/internal/tickets
-        url = f"{self.base_url}/api/internal/tickets"
+        # POST /api/tickets
+        url = f"{self.base_url}/api/tickets"
+        import json
         body = {
             "userId": user_id,
             "type": ticket_type,
             "reason": reason
         }
         if metadata:
-            body["metadata"] = metadata
+            body["metadata"] = json.dumps(metadata, ensure_ascii=False)
         resp = self.client.post(url, json=body)
         resp.raise_for_status()
         return resp.json()
 
     def get_ticket(self, ticket_no: str) -> Optional[Dict[str, Any]]:
         # 根据工单号查询工单
-        # GET /api/internal/tickets/no/{ticketNo}
-        url = f"{self.base_url}/api/internal/tickets/no/{ticket_no}"
+        # GET /api/tickets/no/{ticketNo}
+        url = f"{self.base_url}/api/tickets/no/{ticket_no}"
         resp = self.client.get(url)
         resp.raise_for_status()
         return resp.json()
