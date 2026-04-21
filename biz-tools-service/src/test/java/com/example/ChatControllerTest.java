@@ -24,7 +24,7 @@ public class ChatControllerTest {
     public void testPolicyQaFlow() {
         ChatRequest request = new ChatRequest();
         request.setUserId("user001");
-        request.setMessage("请结婚假可以请几天？");
+        request.setMessage("请假政策有什么");
         request.setSessionId("test_session_001");
 
         ChatResponse response = chatService.chat(request);
