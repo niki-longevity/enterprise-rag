@@ -1,12 +1,10 @@
-# 对话API路由
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.agent.graph import agent_graph
 
-router = APIRouter()
-
+router = APIRouter()    # 创建API路由
 
 class ChatRequest(BaseModel):
     """Java服务发来的对话请求"""

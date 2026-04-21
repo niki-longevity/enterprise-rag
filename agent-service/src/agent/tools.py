@@ -1,8 +1,8 @@
 # Agent工具定义
 from langchain_core.tools import tool
+from src.rag.retriever import search
 from src.tools.resource_tools import query_resource, query_available_resources
 from src.tools.ticket_tools import create_ticket as _create_ticket
-from src.rag.retriever import search
 
 
 @tool
@@ -18,7 +18,7 @@ def search_policy(query: str) -> str:
 
 @tool
 def search_resources(resource_type: str = None) -> str:
-    """查询公司可用资源，如投影仪、笔记本电脑、会议室、软件许可等
+    """查询公司可用资源及其剩余数量，如投影仪、笔记本电脑、会议室、软件许可等
     Args:
         resource_type: 可选，资源类型，有效值：PROJECTOR（投影仪）、LAPTOP（笔记本电脑）、ROOM（会议室）、LICENSE（软件许可）
     """
