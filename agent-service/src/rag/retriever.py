@@ -46,13 +46,11 @@ def search(query: str, top_k: int = 3) -> str:
         文档列表，格式: [{"id": "...", "title": "...", "content": "..."}]
     """
     # 相似度搜索
-    print(f"[搜索问题]:\n{query}")
     results = vector_store.similarity_search(
         query,
         top_k
     )
     context = "\n".join([doc.page_content for doc in results])
-    print(f"[搜索结果]:\n{context}")
 
     return context
 

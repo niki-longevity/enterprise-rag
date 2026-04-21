@@ -1,26 +1,24 @@
 # Agent工具定义
 from langchain_core.tools import tool
-from src.tools.policy_tools import search_policy as _search_policy
 from src.tools.resource_tools import query_resource, query_available_resources
 from src.tools.ticket_tools import create_ticket as _create_ticket
+from src.rag.retriever import search
 
 
-# @tool
+@tool
 def search_policy(query: str) -> str:
     """搜索公司政策文档，回答用户关于政策、规定、制度的问题
-
     Args:
         query: 用户的问题，如"请假需要提前几天申请？"
     """
     print("提问：", query)
-    docs = _search_policy(query, top_k=3)
+    docs = search(query, top_k=3)
     return docs
 
 
 @tool
 def search_resources(resource_type: str = None) -> str:
     """查询公司可用资源，如投影仪、笔记本电脑、会议室、软件许可等
-
     Args:
         resource_type: 可选，资源类型，有效值：PROJECTOR（投影仪）、LAPTOP（笔记本电脑）、ROOM（会议室）、LICENSE（软件许可）
     """
@@ -39,7 +37,6 @@ def search_resources(resource_type: str = None) -> str:
 @tool
 def create_ticket(user_id: str, ticket_type: str, reason: str) -> str:
     """创建工单申请，如请假、报销、借用资源等
-
     Args:
         user_id: 用户ID
         ticket_type: 工单类型，有效值：BORROW（借用）、LEAVE（请假）、EXPENSE（报销）
