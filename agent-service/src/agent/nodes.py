@@ -1,6 +1,5 @@
 # LangGraph节点实现 - ReAct模式
 from typing import Literal
-from langchain_core.messages import ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
 

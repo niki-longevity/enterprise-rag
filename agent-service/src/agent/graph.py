@@ -29,9 +29,9 @@ def create_agent_graph():
 
 agent_graph = create_agent_graph()
 
-try:
-    graph_image_bytes = agent_graph.get_graph().draw_mermaid_png()
-    with open("graph.png", "wb") as f:
-        f.write(graph_image_bytes)
-except Exception as e:
-    print("⚠️ 生成流程图失败:", e)
+# try:
+#     graph_image_bytes = agent_graph.get_graph().draw_mermaid_png()
+#     with open("graph.png", "wb") as f:
+#         f.write(graph_image_bytes)
+# except Exception as e:
+#     print("⚠️ 生成流程图失败:", e)
