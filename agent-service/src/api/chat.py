@@ -1,6 +1,7 @@
 # 对话API路由
 # 提供给前端服务调用的对话接口
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -8,7 +9,7 @@ from src.agent.graph import agent_graph
 from src.db.session import SessionLocal
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
-import src.db
+from src.db.session import get_db
 
 router = APIRouter()
 
@@ -34,16 +35,14 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(
+    request: ChatRequest,
+    # 🔥 关键：注入数据库会话（自动创建、自动关闭，无需手动管理）
+    db: Session = Depends(get_db)
+):
     """
     接收前端的对话请求，调用LangGraph Agent处理
-
-    流程：
-    1. 生成或获取会话ID
-    2. 保存用户消息到数据库（用mapper，和test_db一样）
-    3. 调用LangGraph Agent生成回答
-    4. 保存助手回复到数据库（用mapper，和test_db一样）
-    5. 返回响应
+    修复：使用FastAPI依赖管理数据库会话，解决连接超时/存储失败问题
     """
     # 生成会话ID，如果没有传的话
     session_id = request.sessionId or f"sess_{request.userId}_{id(request)}"
@@ -61,35 +60,38 @@ def chat(request: ChatRequest):
         "session_id": session_id,
     }
 
-    # 创建数据库会话，和test_db一样
-    db = SessionLocal()
+    # 🔥 直接使用注入的db会话，无需手动创建
     mapper = ChatHistoryMapper(db)
 
-    # 保存用户消息，用mapper.save，和test_db一样
-    user_msg = ChatHistory(
-        session_id=session_id,
-        user_id=request.userId,
-        role="USER",
-        content=request.message
-    )
-    mapper.save(user_msg)
+    try:
+        # 保存用户消息
+        user_msg = ChatHistory(
+            session_id=session_id,
+            user_id=request.userId,
+            role="USER",
+            content=request.message
+        )
+        mapper.save(user_msg)
 
-    # 调用Agent生成回答
-    result = agent_graph.invoke(initial_state)
-    reply = result["messages"][-1].content
+        # 调用Agent生成回答（耗时操作，pool_pre_ping会自动保活连接）
+        result = agent_graph.invoke(initial_state)
+        reply = result["messages"][-1].content
 
-    # 保存助手回复，用mapper.save，和test_db一样
-    assistant_msg = ChatHistory(
-        session_id=session_id,
-        user_id=request.userId,
-        role="ASSISTANT",
-        content=reply
-    )
-    mapper.save(assistant_msg)
+        # 保存助手回复
+        assistant_msg = ChatHistory(
+            session_id=session_id,
+            user_id=request.userId,
+            role="ASSISTANT",
+            content=reply
+        )
+        mapper.save(assistant_msg)
 
-    # 关闭数据库会话
-    db.close()
+    except Exception as e:
+        # 捕获所有异常，返回错误，数据库会自动回滚
+        print(f"聊天接口异常：{str(e)}")
+        raise HTTPException(status_code=500, detail=f"处理消息失败：{str(e)}")
 
+    # reply = reply.replace('\\n', '\n')
     # 返回响应
     return ChatResponse(
         reply=reply,
