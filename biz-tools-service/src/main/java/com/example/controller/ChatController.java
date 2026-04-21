@@ -4,6 +4,7 @@ import com.example.dto.request.ChatRequest;
 import com.example.dto.response.ChatResponse;
 import com.example.entity.ChatHistory;
 import com.example.service.ChatHistoryService;
+import com.example.service.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,9 @@ import java.util.List;
 public class ChatController {
 
     @Autowired
+    private ChatService chatService;
+
+    @Autowired
     private ChatHistoryService chatHistoryService;
 
     /**
@@ -28,11 +32,7 @@ public class ChatController {
      */
     @PostMapping
     public ChatResponse chat(@RequestBody ChatRequest request) {
-        // TODO: 调用Agent服务
-        ChatResponse response = new ChatResponse();
-        response.setReply("收到消息：" + request.getMessage());
-        response.setSessionId(request.getSessionId() != null ? request.getSessionId() : "sess_" + System.currentTimeMillis());
-        return response;
+        return chatService.chat(request);
     }
 
     /**

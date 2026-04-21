@@ -19,7 +19,7 @@ def create_agent_graph():
     graph = StateGraph(AgentState)
 
     # 添加节点
-    graph.add_node("classify_intent", classify_intent)
+    graph.add_node("意图识别", classify_intent)
     graph.add_node("retrieve_policy_docs", retrieve_policy_docs)
     graph.add_node("generate_policy_answer", generate_policy_answer)
     graph.add_node("query_resources_node", query_resources_node)
@@ -29,11 +29,11 @@ def create_agent_graph():
     graph.add_node("generate_fallback_answer", generate_fallback_answer)
 
     # 定义边
-    graph.set_entry_point("classify_intent")
+    graph.set_entry_point("意图识别")
 
     # 条件边：根据意图路由
     graph.add_conditional_edges(
-        "classify_intent",
+        "意图识别",
         router_node,
         {
             "retrieve_policy_docs": "retrieve_policy_docs",

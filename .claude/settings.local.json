@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm *)",
+      "Bash(mvn compile *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat\\(Java\\): 基础Controller层 *)",
+      "Bash(git commit -m 'docs: 文档结构重构 *)",
+      "Bash(./mvnw compile *)",
+      "Bash(java *)"
+    ]
+  },
+  "enabledPlugins": {
+    "andrej-karpathy-skills@karpathy-skills": true
+  }
+}
