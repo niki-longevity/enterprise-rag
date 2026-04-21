@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from src.agent.graph import agent_graph
 
 router = APIRouter()
@@ -33,8 +33,13 @@ def chat(request: ChatRequest):
     """接收Java服务的对话请求，调用LangGraph Agent处理"""
     session_id = request.sessionId or f"sess_{request.userId}_{id(request)}"
 
+    system_prompt = "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"
+
     initial_state = {
-        "messages": [HumanMessage(content=request.message)],
+        "messages": [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=request.message)
+        ],
         "user_id": request.userId,
         "session_id": session_id,
     }
