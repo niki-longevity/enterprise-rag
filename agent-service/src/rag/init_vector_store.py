@@ -31,4 +31,5 @@ def init_vector_store():
 
 
 if __name__ == "__main__":
+    print("正在初始化向量库...")
     init_vector_store()

@@ -7,7 +7,8 @@
       "Bash(git commit -m 'feat\\(Java\\): 基础Controller层 *)",
       "Bash(git commit -m 'docs: 文档结构重构 *)",
       "Bash(./mvnw compile *)",
-      "Bash(java *)"
+      "Bash(java *)",
+      "Bash(git commit -m 'refactor: 使用langchain生态工具重写RAG模块，添加DeepSeek LLM集成 *)"
     ]
   },
   "enabledPlugins": {

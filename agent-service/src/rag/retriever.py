@@ -1,64 +1,80 @@
 # 向量检索
-# 使用ChromaDB进行政策文档的向量存储和检索
-import chromadb
-from chromadb.utils import embedding_functions
+# 使用LangChain + ChromaDB进行政策文档的向量存储和检索
 from typing import List, Optional
+from langchain_chroma import Chroma
+from langchain_community.embeddings import DashScopeEmbeddings
+from langchain_core.documents import Document
 from src.config.settings import settings
 
 
 class PolicyRetriever:
-    # 政策文档向量检索器
+    """政策文档向量检索器"""
 
     def __init__(self):
-        # 初始化ChromaDB客户端
-        self.client = chromadb.PersistentClient(path=settings.chroma_db_path)
-
-        # 使用Sentence-Transformers生成向量
-        self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
-
-        # 获取或创建policy集合
-        self.collection = self.client.get_or_create_collection(
-            name="policies",
-            embedding_function=self.ef
+        # 初始化LangChain Chroma向量存储
+        self.vector_store = Chroma(
+            collection_name="policies",
+            embedding_function=DashScopeEmbeddings(
+                model=settings.dashscope_embedding_model
+            ),
+            persist_directory=settings.chroma_db_path
         )
 
     def add_documents(self, chunks: List[dict]):
-        # 添加文档块到向量库
-        # chunks格式: [{"title": "...", "content": "..."}]
-        ids = [f"doc_{i}" for i in range(len(chunks))]
-        documents = [chunk["content"] for chunk in chunks]
-        metadatas = [{"title": chunk["title"]} for chunk in chunks]
-        self.collection.add(
-            ids=ids,
+        """
+        添加文档块到向量库
+
+        Args:
+            chunks: 文档块列表，格式: [{"title": "...", "content": "..."}]
+        """
+        # 转换为LangChain Document格式
+        documents = [
+            Document(
+                page_content=chunk["content"],
+                metadata={"title": chunk["title"]}
+            )
+            for chunk in chunks
+        ]
+
+        # 添加到向量库
+        self.vector_store.add_documents(
             documents=documents,
-            metadatas=metadatas
+            ids=[f"doc_{i}" for i in range(len(documents))]
         )
 
     def search(self, query: str, top_k: int = 3) -> List[dict]:
-        # 搜索相关文档
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=top_k
+        """
+        搜索相关文档
+
+        Args:
+            query: 用户问题
+            top_k: 返回文档数
+
+        Returns:
+            文档列表，格式: [{"id": "...", "title": "...", "content": "..."}]
+        """
+        # 相似度搜索
+        results = self.vector_store.similarity_search(
+            query=query,
+            k=top_k
         )
+
         # 格式化返回结果
         docs = []
-        for i in range(len(results["ids"][0])):
+        for i, doc in enumerate(results):
             docs.append({
-                "id": results["ids"][0][i],
-                "title": results["metadatas"][0][i]["title"],
-                "content": results["documents"][0][i]
+                "id": f"doc_{i}",
+                "title": doc.metadata.get("title", ""),
+                "content": doc.page_content
             })
         return docs
 
     def clear(self):
-        # 清空向量库
-        self.client.delete_collection("policies")
-        self.collection = self.client.create_collection(
-            name="policies",
-            embedding_function=self.ef
-        )
+        """清空向量库"""
+        # 获取所有文档ID并删除
+        existing_ids = self.vector_store.get()["ids"]
+        if existing_ids:
+            self.vector_store.delete(ids=existing_ids)
 
 
 # 全局retriever实例
@@ -66,7 +82,7 @@ policy_retriever: Optional[PolicyRetriever] = None
 
 
 def get_policy_retriever() -> PolicyRetriever:
-    # 获取全局retriever实例（单例）
+    """获取全局retriever实例（单例）"""
     global policy_retriever
     if policy_retriever is None:
         policy_retriever = PolicyRetriever()

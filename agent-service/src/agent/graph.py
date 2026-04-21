@@ -33,9 +33,9 @@ def create_agent_graph():
 
     # 条件边：根据意图路由
     graph.add_conditional_edges(
-        "意图识别",
-        router_node,
-        {
+        source="意图识别",
+        path=router_node,
+        path_map={
             "retrieve_policy_docs": "retrieve_policy_docs",
             "query_resources_node": "query_resources_node",
             "create_ticket_node": "create_ticket_node",

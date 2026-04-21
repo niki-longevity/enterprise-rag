@@ -5,6 +5,11 @@ from src.agent.state import AgentState
 from src.rag.retriever import get_policy_retriever
 from src.tools.resource_tools import query_available_resources
 from src.tools.ticket_tools import create_ticket
+from src.llm.llm import (
+    generate_answer_with_context,
+    generate_resource_answer as llm_generate_resource_answer,
+    generate_ticket_answer as llm_generate_ticket_answer
+)
 
 
 def classify_intent(state: AgentState) -> AgentState:
@@ -38,7 +43,7 @@ def retrieve_policy_docs(state: AgentState) -> AgentState:
 
 
 def generate_policy_answer(state: AgentState) -> AgentState:
-    """生成政策问答回答"""
+    """生成政策问答回答（使用deepseek-chat）"""
     query = state["message"]
     docs = state.get("retrieved_docs", [])
 
@@ -46,10 +51,8 @@ def generate_policy_answer(state: AgentState) -> AgentState:
         state["answer"] = "抱歉，没有找到相关的政策信息。"
         return state
 
-    # 简单的回答生成：拼接检索到的文档内容
-    context = "\n\n".join([f"【{doc['title']}】\n{doc['content']}" for doc in docs])
-
-    answer = f"根据您的问题「{query}」，我为您找到以下相关政策：\n\n{context}\n\n希望以上信息对您有帮助！"
+    # 使用LLM生成回答
+    answer = generate_answer_with_context(query, docs)
     state["answer"] = answer
     return state
 
@@ -81,7 +84,7 @@ def query_resources_node(state: AgentState) -> AgentState:
 
 
 def generate_resource_answer(state: AgentState) -> AgentState:
-    """生成资源查询回答"""
+    """生成资源查询回答（使用deepseek-chat）"""
     message = state["message"]
     resources = state.get("resources", [])
 
@@ -89,27 +92,8 @@ def generate_resource_answer(state: AgentState) -> AgentState:
         state["answer"] = "抱歉，目前没有找到可用的资源。"
         return state
 
-    # 格式化资源列表
-    resource_list = []
-    for res in resources:
-        type_name = {
-            "PROJECTOR": "投影仪",
-            "LAPTOP": "笔记本电脑",
-            "ROOM": "会议室",
-            "LICENSE": "软件许可"
-        }.get(res.get("type"), res.get("type"))
-
-        name = res.get('name', '')
-        desc = res.get('description', '')
-        quantity = res.get('quantity')
-        available_quantity = res.get('availableQuantity') or res.get('available_quantity')
-
-        if available_quantity is not None and quantity is not None:
-            resource_list.append(f"- {type_name}: {name} (可用: {available_quantity}/{quantity}, {desc})")
-        else:
-            resource_list.append(f"- {type_name}: {name} ({desc})")
-
-    answer = f"根据您的问题「{message}」，以下是可用的资源：\n\n" + "\n".join(resource_list)
+    # 使用LLM生成回答
+    answer = llm_generate_resource_answer(message, resources)
     state["answer"] = answer
     return state
 
@@ -147,28 +131,14 @@ def create_ticket_node(state: AgentState) -> AgentState:
 
 
 def generate_ticket_answer(state: AgentState) -> AgentState:
-    """生成工单创建回答"""
+    """生成工单创建回答（使用deepseek-chat）"""
     ticket = state.get("ticket")
     if not ticket:
         state["answer"] = "抱歉，工单创建失败，请稍后再试。"
         return state
 
-    ticket_no = ticket.get("ticketNo")
-    status = ticket.get("status")
-    status_text = {
-        "PENDING": "待审批",
-        "APPROVED": "已批准",
-        "REJECTED": "已拒绝"
-    }.get(status, status)
-
-    answer = f"工单已创建成功！\n\n工单号：{ticket_no}\n当前状态：{status_text}"
-    if status == "APPROVED":
-        answer += "\n\n恭喜，您的申请已自动批准！"
-    elif status == "REJECTED":
-        answer += "\n\n抱歉，您的申请未通过审批。"
-    else:
-        answer += "\n\n请等待审批结果，我们会尽快处理您的申请。"
-
+    # 使用LLM生成回答
+    answer = llm_generate_ticket_answer(ticket)
     state["answer"] = answer
     return state
 
