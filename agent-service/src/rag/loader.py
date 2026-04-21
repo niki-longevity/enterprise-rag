@@ -3,22 +3,19 @@
 from pathlib import Path
 from typing import List
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from src.config.settings import settings
 
 
 def load_policy_documents(data_dir: str = None) -> List[dict]:
     """
     使用LangChain加载政策文档
     Args:
-        data_dir: 政策文档目录，None则自动查找
+        data_dir: 政策文档目录，None则使用settings中的配置
     Returns:
         文档列表，格式: [{"title": "...", "content": "...", "file_path": "..."}]
     """
     if data_dir is None:
-        # 使用相对于项目根目录的路径
-        current_file = Path(__file__)
-        # src/rag/loader.py -> ../../data/policies
-        project_root = current_file.parent.parent.parent
-        data_dir = project_root / "data" / "policies"
+        data_dir = settings.policies_data_dir
 
     dir_path = Path(data_dir)
     if not dir_path.exists():

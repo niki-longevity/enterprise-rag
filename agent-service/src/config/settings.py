@@ -1,7 +1,12 @@
 # 配置管理
 # 统一管理Agent服务的配置项，从系统环境变量读取
 import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
+
+
+# 项目根目录：agent-service/ 目录
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 
 
 class Settings(BaseSettings):
@@ -23,8 +28,11 @@ class Settings(BaseSettings):
     # Java服务地址，用于Agent调用Java的内部API
     java_service_url: str = "http://localhost:8080"
 
-    # ChromaDB向量库本地存储路径
-    chroma_db_path: str = "./chroma_db"
+    # ChromaDB向量库本地存储路径（绝对路径，基于项目根目录）
+    chroma_db_path: str = str(PROJECT_ROOT / "chroma_db")
+
+    # 政策文档目录（绝对路径，基于项目根目录）
+    policies_data_dir: str = str(PROJECT_ROOT / "data" / "policies")
 
 
 settings = Settings()

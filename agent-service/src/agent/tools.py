@@ -1,11 +1,11 @@
 # Agent工具定义
 from langchain_core.tools import tool
-from src.rag.retriever import search_policy as _search_policy
+from src.tools.policy_tools import search_policy as _search_policy
 from src.tools.resource_tools import query_resource, query_available_resources
 from src.tools.ticket_tools import create_ticket as _create_ticket
 
 
-@tool
+# @tool
 def search_policy(query: str) -> str:
     """搜索公司政策文档，回答用户关于政策、规定、制度的问题
 
@@ -13,7 +13,8 @@ def search_policy(query: str) -> str:
         query: 用户的问题，如"请假需要提前几天申请？"
     """
     print("提问：", query)
-    return _search_policy(query, top_k=3)
+    docs = _search_policy(query, top_k=3)
+    return docs
 
 
 @tool

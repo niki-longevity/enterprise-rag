@@ -1,7 +1,35 @@
 # 文档分块
 # 使用LangChain把政策文档切分成小块，用于向量检索
+import re
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
+def clean_text(text: str) -> str:
+    """
+    清理文本格式，优化向量检索质量
+    - 合并连续换行
+    - 去除行首尾空格
+    - 保留段落结构
+    """
+    # 替换 \r\n 为 \n
+    text = text.replace("\r\n", "\n")
+
+    # 合并 3 个以上连续换行为 2 个
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    # 去除每行首尾空格
+    lines = [line.strip() for line in text.split("\n")]
+
+    # 重新拼接，过滤空行（但保留段落分隔）
+    cleaned_lines = []
+    for line in lines:
+        if line:
+            cleaned_lines.append(line)
+        elif cleaned_lines and cleaned_lines[-1] != "":  # 避免连续空行
+            cleaned_lines.append("")
+
+    return "\n".join(cleaned_lines)
 
 
 def split_document_by_title(content: str, title: str) -> List[dict]:
@@ -13,11 +41,14 @@ def split_document_by_title(content: str, title: str) -> List[dict]:
     Returns:
         文档块列表，格式: [{"title": "...", "content": "..."}]
     """
+    # 先清理文本
+    content = clean_text(content)
+
     # 使用LangChain的RecursiveCharacterTextSplitter
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=100,
-        separators=["\n\n", "\n", " ", ""]
+        separators=["\n\n", "\n", "。", "！", "？", " ", ""]
     )
 
     # 切分文档

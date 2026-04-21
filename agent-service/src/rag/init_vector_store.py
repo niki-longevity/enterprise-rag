@@ -4,7 +4,7 @@
 """
 from src.rag.loader import load_policy_documents
 from src.rag.splitter import split_document_by_title
-from src.rag.retriever import add_documents, clear_vector_store
+from src.rag.retriever import clear, add_documents
 
 
 def init_vector_store():
@@ -22,9 +22,8 @@ def init_vector_store():
     print(f"共切分成 {len(all_chunks)} 个文档块")
 
     print("正在存入向量库...")
-    clear_vector_store()
+    clear()
     add_documents(all_chunks)
-
     print("向量库初始化完成！")
 
 
