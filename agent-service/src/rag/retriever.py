@@ -23,7 +23,6 @@ class PolicyRetriever:
     def add_documents(self, chunks: List[dict]):
         """
         添加文档块到向量库
-
         Args:
             chunks: 文档块列表，格式: [{"title": "...", "content": "..."}]
         """
@@ -45,11 +44,9 @@ class PolicyRetriever:
     def search(self, query: str, top_k: int = 3) -> List[dict]:
         """
         搜索相关文档
-
         Args:
             query: 用户问题
             top_k: 返回文档数
-
         Returns:
             文档列表，格式: [{"id": "...", "title": "...", "content": "..."}]
         """

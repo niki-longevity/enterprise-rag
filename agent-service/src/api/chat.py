@@ -1,56 +1,45 @@
 # 对话API路由
-# 定义Java服务调用Agent的HTTP接口
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from langchain_core.messages import HumanMessage
 from src.agent.graph import agent_graph
-from src.agent.state import AgentState
 
 router = APIRouter()
 
 
 class ChatRequest(BaseModel):
-    # Java服务发来的对话请求
     userId: str = Field(..., description="用户ID")
     message: str = Field(..., description="用户消息内容")
     sessionId: Optional[str] = Field(None, description="会话ID，可选，用于会话续传")
 
 
 class Attachment(BaseModel):
-    # 回复附件，如引用的政策文档、工单信息等
-    type: str  # 类型：POLICY, RESOURCE, TICKET
-    title: str  # 标题
+    type: str
+    title: str
 
 
 class ChatResponse(BaseModel):
-    # 返回给Java服务的对话响应
-    reply: str  # 助手回复内容
-    session_id: str  # 会话ID
-    attachments: Optional[List[Attachment]] = None  # 附件列表
+    reply: str
+    session_id: str
+    attachments: Optional[List[Attachment]] = None
 
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    # 接收Java服务的对话请求，调用LangGraph Agent处理
     session_id = request.sessionId or f"sess_{request.userId}_{id(request)}"
 
-    # 构建初始状态
-    initial_state: AgentState = {
+    initial_state = {
+        "messages": [HumanMessage(content=request.message)],
         "user_id": request.userId,
         "session_id": session_id,
-        "message": request.message,
-        "intent": None,
-        "retrieved_docs": [],
-        "resources": [],
-        "ticket": None,
-        "answer": None,
     }
 
-    # 调用LangGraph
     result = agent_graph.invoke(initial_state)
+    reply = result["messages"][-1].content
 
     return ChatResponse(
-        reply=result.get("answer", ""),
+        reply=reply,
         session_id=session_id,
         attachments=None
     )

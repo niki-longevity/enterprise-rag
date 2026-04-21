@@ -7,11 +7,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 def split_document_by_title(content: str, title: str) -> List[dict]:
     """
     使用LangChain的RecursiveCharacterTextSplitter切分文档
-
     Args:
         content: 文档内容
         title: 文档标题
-
     Returns:
         文档块列表，格式: [{"title": "...", "content": "..."}]
     """

@@ -8,10 +8,8 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 def load_policy_documents(data_dir: str = None) -> List[dict]:
     """
     使用LangChain加载政策文档
-
     Args:
         data_dir: 政策文档目录，None则自动查找
-
     Returns:
         文档列表，格式: [{"title": "...", "content": "...", "file_path": "..."}]
     """

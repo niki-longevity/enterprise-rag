@@ -1,156 +1,95 @@
-# LangGraph节点实现
-# 实现各个Agent节点功能
-from typing import List
-from src.agent.state import AgentState
+# LangGraph节点实现 - ReAct模式
+from typing import Literal
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import tool
 from src.rag.retriever import get_policy_retriever
-from src.tools.resource_tools import query_available_resources
+from src.tools.resource_tools import query_available_resources, query_resource
 from src.tools.ticket_tools import create_ticket
-from src.llm.llm import (
-    generate_answer_with_context,
-    generate_resource_answer as llm_generate_resource_answer,
-    generate_ticket_answer as llm_generate_ticket_answer
-)
+from src.llm.llm import get_llm_with_tools
 
 
-def classify_intent(state: AgentState) -> AgentState:
-    """意图分类节点：识别用户意图"""
-    message = state["message"].lower()
-
-    # 简单关键词匹配实现意图分类
-    policy_keywords = ["政策", "规定", "制度", "办法", "规范", "能不能", "可以吗", "允许吗", "怎么", "如何"]
-    resource_keywords = ["资源", "设备", "投影仪", "笔记本", "会议室", "借用", "闲置"]
-    ticket_keywords = ["申请", "审批", "工单", "帮我", "需要"]
-
-    intent = "CHITCHAT"
-    if any(kw in message for kw in policy_keywords):
-        intent = "POLICY_QA"
-    elif any(kw in message for kw in resource_keywords):
-        intent = "RESOURCE_QUERY"
-    elif any(kw in message for kw in ticket_keywords):
-        intent = "TICKET_CREATE"
-
-    state["intent"] = intent
-    return state
-
-
-def retrieve_policy_docs(state: AgentState) -> AgentState:
-    """政策文档检索节点：从向量库检索相关政策"""
-    query = state["message"]
+@tool
+def search_policy(query: str) -> str:
+    """搜索政策文档，回答用户关于公司政策、规定、制度的问题"""
     retriever = get_policy_retriever()
     docs = retriever.search(query, top_k=3)
-    state["retrieved_docs"] = docs
-    return state
-
-
-def generate_policy_answer(state: AgentState) -> AgentState:
-    """生成政策问答回答（使用deepseek-chat）"""
-    query = state["message"]
-    docs = state.get("retrieved_docs", [])
-
     if not docs:
-        state["answer"] = "抱歉，没有找到相关的政策信息。"
-        return state
-
-    # 使用LLM生成回答
-    answer = generate_answer_with_context(query, docs)
-    state["answer"] = answer
-    return state
+        return "没有找到相关政策信息。"
+    return "\n\n".join([f"[{doc['title']}]\n{doc['content']}" for doc in docs])
 
 
-def query_resources_node(state: AgentState) -> AgentState:
-    """资源查询节点：从Java服务查询资源"""
-    message = state["message"].lower()
+@tool
+def query_resources(resource_type: str = None) -> str:
+    """查询公司可用资源，如投影仪、笔记本电脑、会议室、软件许可等
 
-    # 简单的资源类型识别
-    resource_type = None
-    if "投影仪" in message:
-        resource_type = "PROJECTOR"
-    elif "笔记本" in message or "电脑" in message:
-        resource_type = "LAPTOP"
-    elif "会议室" in message:
-        resource_type = "ROOM"
-    elif "软件" in message or "许可" in message:
-        resource_type = "LICENSE"
-
-    # 查询可用资源
+    Args:
+        resource_type: 可选，资源类型，如 PROJECTOR（投影仪）、LAPTOP（笔记本）、ROOM（会议室）、LICENSE（软件许可）
+    """
     if resource_type:
-        from src.tools.resource_tools import query_resource
         resources = query_resource(resource_type=resource_type, status="AVAILABLE")
     else:
         resources = query_available_resources()
-
-    state["resources"] = resources
-    return state
-
-
-def generate_resource_answer(state: AgentState) -> AgentState:
-    """生成资源查询回答（使用deepseek-chat）"""
-    message = state["message"]
-    resources = state.get("resources", [])
-
     if not resources:
-        state["answer"] = "抱歉，目前没有找到可用的资源。"
-        return state
-
-    # 使用LLM生成回答
-    answer = llm_generate_resource_answer(message, resources)
-    state["answer"] = answer
-    return state
+        return "目前没有可用资源。"
+    return "\n\n".join([f"[{r['name']}]\n类型: {r['type']}\n状态: {r['status']}" for r in resources])
 
 
-def generate_fallback_answer(state: AgentState) -> AgentState:
-    """生成兜底回答"""
-    intent = state["intent"]
-    if intent == "TICKET_CREATE":
-        state["answer"] = "工单申请功能正在开发中，敬请期待！"
-    else:
-        state["answer"] = "您好！我是企业员工助手，目前可以帮您查询政策信息和可用资源。请问有什么可以帮您的？"
-    return state
+@tool
+def create_ticket_tool(user_id: str, ticket_type: str, reason: str) -> str:
+    """创建工单申请，如请假、报销、借用资源等
+
+    Args:
+        user_id: 用户ID
+        ticket_type: 工单类型，如 BORROW（借用）、LEAVE（请假）、EXPENSE（报销）
+        reason: 申请原因
+    """
+    ticket = create_ticket(user_id=user_id, ticket_type=ticket_type, reason=reason)
+    if ticket:
+        return f"工单创建成功！工单号：{ticket['id']}，类型：{ticket['type']}"
+    return "工单创建失败，请稍后再试。"
 
 
-def create_ticket_node(state: AgentState) -> AgentState:
-    """工单创建节点：调用Java服务创建工单"""
-    message = state["message"]
-    user_id = state["user_id"]
-
-    # 简单的工单类型识别
-    ticket_type = "BORROW"
-    if "请假" in message or "休假" in message:
-        ticket_type = "LEAVE"
-    elif "报销" in message or "差旅" in message:
-        ticket_type = "EXPENSE"
-
-    # 创建工单
-    ticket = create_ticket(
-        user_id=user_id,
-        ticket_type=ticket_type,
-        reason=message
-    )
-    state["ticket"] = ticket
-    return state
+tools = [search_policy, query_resources, create_ticket_tool]
 
 
-def generate_ticket_answer(state: AgentState) -> AgentState:
-    """生成工单创建回答（使用deepseek-chat）"""
-    ticket = state.get("ticket")
-    if not ticket:
-        state["answer"] = "抱歉，工单创建失败，请稍后再试。"
-        return state
-
-    # 使用LLM生成回答
-    answer = llm_generate_ticket_answer(ticket)
-    state["answer"] = answer
-    return state
+def agent_node(state):
+    """LLM节点：决定调用工具还是直接回答"""
+    llm = get_llm_with_tools(tools)
+    messages = state["messages"]
+    response = llm.invoke(messages)
+    return {"messages": [response]}
 
 
-def router_node(state: AgentState) -> str:
-    """路由节点：根据意图选择下一个节点"""
-    intent = state.get("intent")
-    if intent == "POLICY_QA":
-        return "retrieve_policy_docs"
-    elif intent == "RESOURCE_QUERY":
-        return "query_resources_node"
-    elif intent == "TICKET_CREATE":
-        return "create_ticket_node"
-    else:
-        return "generate_fallback_answer"
+def should_continue(state) -> Literal["tools", "end"]:
+    """路由：判断是否需要调用工具"""
+    messages = state["messages"]
+    last_message = messages[-1]
+    if last_message.tool_calls:
+        return "tools"
+    return "end"
+
+
+def tool_node(state):
+    """工具节点：执行工具调用"""
+    messages = state["messages"]
+    last_message = messages[-1]
+
+    tool_outputs = []
+    for tool_call in last_message.tool_calls:
+        tool_name = tool_call["name"]
+        tool_args = tool_call["args"]
+
+        if tool_name == "search_policy":
+            output = search_policy.invoke(tool_args)
+        elif tool_name == "query_resources":
+            output = query_resources.invoke(tool_args)
+        elif tool_name == "create_ticket_tool":
+            output = create_ticket_tool.invoke(tool_args)
+        else:
+            output = f"未知工具: {tool_name}"
+
+        tool_outputs.append(
+            ToolMessage(content=output, tool_call_id=tool_call["id"])
+        )
+
+    return {"messages": tool_outputs}
