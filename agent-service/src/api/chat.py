@@ -3,8 +3,10 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.agent.graph import agent_graph
+from src.db.database import save_message, get_history_by_session, get_sessions_by_user
 
-router = APIRouter()    # 创建API路由
+router = APIRouter()
+
 
 class ChatRequest(BaseModel):
     """Java服务发来的对话请求"""
@@ -14,7 +16,7 @@ class ChatRequest(BaseModel):
 
 
 class Attachment(BaseModel):
-    """回复附件，如引用的政策文档、工单信息等"""
+    """回复附件，如引用的政策文档等"""
     type: str
     title: str
 
@@ -42,11 +44,27 @@ def chat(request: ChatRequest):
         "session_id": session_id,
     }
 
+    save_message(session_id, request.userId, "USER", request.message)
+
     result = agent_graph.invoke(initial_state)
     reply = result["messages"][-1].content
+
+    save_message(session_id, request.userId, "ASSISTANT", reply)
 
     return ChatResponse(
         reply=reply,
         session_id=session_id,
         attachments=None
     )
+
+
+@router.get("/history")
+def get_history(session_id: str):
+    """获取会话历史"""
+    return get_history_by_session(session_id)
+
+
+@router.get("/sessions")
+def get_sessions(user_id: str):
+    """获取用户的会话列表"""
+    return get_sessions_by_user(user_id)
