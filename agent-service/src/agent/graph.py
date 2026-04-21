@@ -5,7 +5,6 @@ from src.agent.nodes import agent_node, tool_node, should_continue
 
 
 def create_agent_graph():
-    """创建LangGraph状态图 - ReAct模式"""
     graph = StateGraph(AgentState)
 
     graph.add_node("agent", agent_node)
