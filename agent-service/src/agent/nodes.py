@@ -9,6 +9,7 @@ from src.agent.tools import tools
 
 
 def get_llm():
+    """获取LLM实例"""
     return ChatOpenAI(
         model=settings.deepseek_model,
         api_key=settings.deepseek_api_key,
@@ -18,6 +19,7 @@ def get_llm():
 
 
 def agent_node(state):
+    """Agent节点：调用LLM决定下一步"""
     llm = get_llm().bind_tools(tools)
     messages = state["messages"]
     response = llm.invoke(messages)
@@ -25,11 +27,12 @@ def agent_node(state):
 
 
 def should_continue(state) -> Literal["tools", "end"]:
+    """路由：判断是否需要调用工具"""
     messages = state["messages"]
     last_message = messages[-1]
     if last_message.tool_calls:
         return "tools"
     return "end"
 
-# 框架自带的工具执行节点
+
 tool_node = ToolNode(tools)

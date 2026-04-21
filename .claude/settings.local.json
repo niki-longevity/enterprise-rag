@@ -10,7 +10,8 @@
       "Bash(java *)",
       "Bash(git commit -m 'refactor: 使用langchain生态工具重写RAG模块，添加DeepSeek LLM集成 *)",
       "Bash(git commit -m 'refactor: 改用ReAct模式简化Agent架构 *)",
-      "Bash(git commit -m 'refactor: 重组Agent代码结构 *)"
+      "Bash(git commit -m 'refactor: 重组Agent代码结构 *)",
+      "Bash(git commit *)"
     ]
   },
   "enabledPlugins": {
