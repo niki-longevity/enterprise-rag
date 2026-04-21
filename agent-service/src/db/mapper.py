@@ -1,7 +1,7 @@
 # 基础Mapper封装（类似MyBatis Plus）
-from typing import TypeVar, Type, List, Optional
+from typing import TypeVar, Type, List, Optional, Any, Sequence
 from sqlalchemy.orm import Session
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, Row, RowMapping
 
 ModelType = TypeVar("ModelType")
 
@@ -24,16 +24,16 @@ class BaseMapper:
         """根据ID查询"""
         return self.db.get(self.model, id)
 
-    def list_all(self) -> List[ModelType]:
+    def list_all(self) -> Sequence[Row[Any] | RowMapping | Any]:
         """查询所有"""
         return self.db.execute(select(self.model)).scalars().all()
 
-    def list_by_field(self, field_name: str, value) -> List[ModelType]:
+    def list_by_field(self, field_name: str, value) -> Sequence[Row[Any] | RowMapping | Any]:
         """根据字段查询列表"""
         field = getattr(self.model, field_name)
         return self.db.execute(select(self.model).where(field == value)).scalars().all()
 
-    def list_order_by(self, order_field: str, ascending: bool = True) -> List[ModelType]:
+    def list_order_by(self, order_field: str, ascending: bool = True) -> Sequence[Row[Any] | RowMapping | Any]:
         """排序查询"""
         field = getattr(self.model, order_field)
         if not ascending:

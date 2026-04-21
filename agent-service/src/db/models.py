@@ -1,6 +1,5 @@
 # 数据库模型
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -15,4 +14,4 @@ class ChatHistory(Base):
     user_id = Column(String(50), nullable=False)
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, server_default=func.now())

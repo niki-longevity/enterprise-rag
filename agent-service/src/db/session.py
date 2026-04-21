@@ -8,7 +8,7 @@ DATABASE_URL = f"mysql+pymysql://{settings.db_user}:{settings.db_password}@{sett
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
+# FastAPI依赖注入
 def get_db():
     """获取数据库会话"""
     db = SessionLocal()
