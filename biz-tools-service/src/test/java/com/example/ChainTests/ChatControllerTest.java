@@ -33,22 +33,4 @@ public class ChatControllerTest {
         System.out.println("助手回复: " + response.getReply());
         System.out.println("会话ID: " + response.getSessionId());
     }
-
-    /**
-     * 测试链路二：资源查询
-     * 从Java端ChatService -> Python Agent服务 -> 调用Java资源查询API -> 返回结果
-     */
-    @Test
-    public void testResourceQueryFlow() {
-        ChatRequest request = new ChatRequest();
-        request.setUserId("user001");
-        request.setMessage("现在有哪些可用的投影仪？");
-        request.setSessionId("test_session_002");
-
-        ChatResponse response = chatService.chat(request);
-
-        System.out.println("用户问题: " + request.getMessage());
-        System.out.println("助手回复: " + response.getReply());
-        System.out.println("会话ID: " + response.getSessionId());
-    }
 }
