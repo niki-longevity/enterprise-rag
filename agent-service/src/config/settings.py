@@ -34,5 +34,12 @@ class Settings(BaseSettings):
     # 政策文档目录（绝对路径，基于项目根目录）
     policies_data_dir: str = str(PROJECT_ROOT / "data" / "policies")
 
+    # MySQL数据库配置
+    db_host: str = os.getenv("DB_HOST", "localhost")
+    db_port: int = int(os.getenv("DB_PORT", "3307"))
+    db_user: str = os.getenv("DB_USER", "root")
+    db_password: str = os.getenv("DB_PASSWORD", "88888888")
+    db_name: str = os.getenv("DB_NAME", "db_ea")
+
 
 settings = Settings()
