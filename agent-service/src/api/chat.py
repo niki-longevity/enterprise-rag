@@ -1,6 +1,6 @@
 # 对话API路由 - 流式输出
 # 提供给前端服务调用的对话接口
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -55,7 +55,7 @@ def compress_memory_async(memory_key: str):
 
 
 class ChatRequest(BaseModel):
-    """前端发来的对话请求（POST用）"""
+    """前端发来的对话请求"""
     userId: str = Field(..., description="用户ID")
     message: str = Field(..., description="用户消息内容")
     sessionId: Optional[str] = Field(None, description="会话ID，可选，用于会话续传")
@@ -152,23 +152,12 @@ async def chat_stream_impl(
 
 
 @router.post("/chat")
-async def chat_post(
+async def chat(
     request: ChatRequest,
     db: Session = Depends(get_db)
 ):
-    """POST 方式的流式对话（给 fetch 用）"""
+    """流式对话接口"""
     return await chat_stream_impl(request.userId, request.message, request.sessionId, db)
-
-
-@router.get("/chat")
-async def chat_get(
-    userId: str = Query(..., description="用户ID"),
-    message: str = Query(..., description="用户消息内容"),
-    sessionId: Optional[str] = Query(None, description="会话ID"),
-    db: Session = Depends(get_db)
-):
-    """GET 方式的流式对话（给 EventSource 用）"""
-    return await chat_stream_impl(userId, message, sessionId, db)
 
 
 @router.get("/history")
