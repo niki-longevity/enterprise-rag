@@ -58,6 +58,30 @@ def search(query: str, top_k: int = 3) -> str:
 
     return context
 
+def get_all_chunks() -> List[Document]:
+    """获取全量chunk"""
+    results = vector_store.get()
+    return [
+        Document(
+            page_content=content,
+            metadata=metadata,
+        )
+        for content, metadata in zip(results["documents"], results["metadatas"])
+    ]
+
+def get_chunks_by_file(file_name: str) -> List[Document]:
+    """获取指定文档的全量chunk"""
+    results = vector_store.get(
+        where={"file_name": file_name}
+    )
+    return [
+        Document(
+            page_content=content,
+            metadata=metadata,
+        )
+        for content, metadata in zip(results["documents"], results["metadatas"])
+    ]
+
 def clear():
     """清空向量库"""
     # 获取所有文档ID并删除
