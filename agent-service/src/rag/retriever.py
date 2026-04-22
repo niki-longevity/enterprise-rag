@@ -25,7 +25,11 @@ def add_documents(chunks: List[dict]):
     documents = [
         Document(
             page_content=chunk["content"],
-            metadata={"title": chunk["title"]}
+            metadata={
+                "title": chunk["title"],
+                "file_name": chunk["file_name"],
+                "chunk_idx": chunk["chunk_idx"]
+            }
         )
         for chunk in chunks
     ]
@@ -33,7 +37,7 @@ def add_documents(chunks: List[dict]):
     # 添加到向量库
     vector_store.add_documents(
         documents=documents,
-        ids=[f"doc_{i}" for i in range(len(documents))]
+        ids=[f"{chunk['file_name']}::{chunk['chunk_idx']}" for chunk in chunks]
     )
 
 def search(query: str, top_k: int = 3) -> str:

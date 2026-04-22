@@ -59,7 +59,9 @@ def split_document_by_title(content: str, title: str) -> List[dict]:
     for i, chunk_content in enumerate(chunks):
         result.append({
             "title": f"{title} - 第{i+1}段",
-            "content": chunk_content
+            "content": chunk_content,
+            "file_name": title,
+            "chunk_idx": i
         })
 
     return result
