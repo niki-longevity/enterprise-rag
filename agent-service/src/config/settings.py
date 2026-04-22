@@ -41,5 +41,11 @@ class Settings(BaseSettings):
     db_password: str = os.getenv("DB_PASSWORD", "88888888")
     db_name: str = os.getenv("DB_NAME", "db_ea")
 
+    # Redis数据库配置
+    redis_host: str = os.getenv("REDIS_HOST", "172.22.32.238")
+    redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
+    redis_password: str = os.getenv("REDIS_PASSWORD", "")
+    redis_db: int = int(os.getenv("REDIS_DB", "0"))
+
 
 settings = Settings()

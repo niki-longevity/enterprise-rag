@@ -10,6 +10,8 @@ from src.db.session import SessionLocal
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
 from src.db.session import get_db
+from src.db.redis import redis_client
+import json
 
 router = APIRouter()
 
@@ -85,6 +87,11 @@ def chat(
             content=reply
         )
         mapper.save(assistant_msg)
+
+        # 保存到Redis长期记忆（list结构，key=userId:sessionId）
+        memory_key = f"{request.userId}:{session_id}"
+        redis_client.rpush(memory_key, json.dumps({"role": "USER", "content": request.message}, ensure_ascii=False))
+        redis_client.rpush(memory_key, json.dumps({"role": "ASSISTANT", "content": reply}, ensure_ascii=False))
 
     except Exception as e:
         # 捕获所有异常，返回错误，数据库会自动回滚
