@@ -6,14 +6,45 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
+from src.agent.nodes import get_llm
 from src.db.session import SessionLocal
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
 from src.db.session import get_db
 from src.db.redis import redis_client
 import json
+import asyncio  # 引入协程
+import threading
 
 router = APIRouter()
+
+
+def compress_memory_async(memory_key: str):
+    """异步压缩记忆：在后台线程中运行"""
+    def task():
+        memory_items = redis_client.lrange(memory_key, 0, -1)
+
+        # 构建总结请求
+        history_text = "\n".join([
+            f"{json.loads(item)['role']}: {json.loads(item)['content']}"
+            for item in memory_items
+        ])
+        summary_prompt = f"""下面的对话，请进行一下总结，后面的3轮对话的不用总结，直接保留：
+                        {history_text}
+                        """
+        llm = get_llm()
+        summary = llm.invoke([HumanMessage(content=summary_prompt)]).content
+
+        # 原子替换原有记忆：先删除再push，用Lua脚本保证原子性
+        lua_script = """
+                    redis.call('DEL', KEYS[1])
+                    redis.call('RPUSH', KEYS[1], ARGV[1])
+                    """
+        redis_client.eval(lua_script, 1, memory_key, json.dumps({"role": "SUMMARY", "content": summary}, ensure_ascii=False))
+
+    # 创建后台线程，注意，不是协程
+    thread = threading.Thread(target=task, daemon=True)
+    thread.start()
 
 
 class ChatRequest(BaseModel):
@@ -61,6 +92,8 @@ def chat(
             messages.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "ASSISTANT":
             messages.append(AIMessage(content=msg["content"]))
+        elif msg["role"] == "SUMMARY":
+            messages.append(SystemMessage(content="历史对话摘要：" + msg["content"]))
 
     # 追加系统提示
     messages.append(SystemMessage(content="上面是与用户的历史会话，下面是用户的新问题。"
@@ -106,6 +139,10 @@ def chat(
         memory_key = f"{request.userId}:{session_id}"
         redis_client.rpush(memory_key, json.dumps({"role": "USER", "content": request.message}, ensure_ascii=False))
         redis_client.rpush(memory_key, json.dumps({"role": "ASSISTANT", "content": reply}, ensure_ascii=False))
+
+        # 如果记忆超过20条，触发异步压缩
+        if redis_client.llen(memory_key) > 20:
+            compress_memory_async(memory_key)
 
     except Exception as e:
         # 捕获所有异常，返回错误，数据库会自动回滚
