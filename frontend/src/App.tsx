@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Input, Button, List, Spin, message } from 'antd'
 import { SendOutlined, PlusOutlined } from '@ant-design/icons'
-import { sendMessage, getHistory, getSessions } from './api'
+import { sendMessageStream, getHistory, getSessions } from './api'
 import './App.css'
 
 // 消息类型
@@ -85,25 +85,43 @@ function App() {
       content: text,
       created_at: new Date().toISOString(),
     }
-    setMessages(prev => [...prev, tempUserMsg])
+    // 先加用户消息，再加一个空的助手消息占位
+    const assistantMsgId = Date.now() + 1
+    const emptyAssistantMsg: ChatMsg = {
+      id: assistantMsgId,
+      role: 'ASSISTANT',
+      content: '',
+      created_at: new Date().toISOString(),
+    }
+    setMessages(prev => [...prev, tempUserMsg, emptyAssistantMsg])
     setInput('')
 
     try {
-      // 调后端接口
-      const data = await sendMessage(USER_ID, text, activeSession || undefined)
-      // 如果是新会话，后端会返回session_id，切换过去
-      if (!activeSession) {
-        setActiveSession(data.session_id)
-        loadSessions()
-      }
-      // 追加助手回复到消息列表
-      const assistantMsg: ChatMsg = {
-        id: Date.now() + 1,
-        role: 'ASSISTANT',
-        content: data.reply,
-        created_at: new Date().toISOString(),
-      }
-      setMessages(prev => [...prev, assistantMsg])
+      let finalSessionId = activeSession
+      await sendMessageStream(
+        USER_ID,
+        text,
+        activeSession || undefined,
+        (chunk) => {
+          // 流式接收每个chunk，追加到助手消息
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === assistantMsgId) {
+              return { ...msg, content: msg.content + chunk }
+            }
+            return msg
+          }))
+        },
+        (sessionId) => {
+          finalSessionId = sessionId
+          if (!activeSession) {
+            setActiveSession(sessionId)
+            loadSessions()
+          }
+        },
+        (error) => {
+          message.error(error)
+        }
+      )
     } catch {
       message.error('发送失败，请重试')
     } finally {
@@ -161,17 +179,13 @@ function App() {
                     {i < msg.content.split('\n').length - 1 && <br />}
                   </span>
                 ))}
+                {/* 如果是正在生成的空消息，显示loading */}
+                {loading && msg.role === 'ASSISTANT' && msg.content === '' && (
+                  <Spin size="small" />
+                )}
               </div>
             </div>
           ))}
-          {/* 发送中显示loading气泡 */}
-          {loading && (
-            <div className="msg-row assistant">
-              <div className="msg-bubble assistant loading-bubble">
-                <Spin size="small" /> 思考中...
-              </div>
-            </div>
-          )}
           <div ref={msgEndRef} />
         </div>
 
