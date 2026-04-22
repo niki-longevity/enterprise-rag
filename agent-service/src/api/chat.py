@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
 from src.db.session import SessionLocal
 from src.db.mapper import ChatHistoryMapper
@@ -49,15 +49,29 @@ def chat(
     # 生成会话ID，如果没有传的话
     session_id = request.sessionId or f"sess_{request.userId}_{id(request)}"
 
-    # 构建系统提示词
-    system_prompt = "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"
+    # 构建消息列表
+    messages = []
+
+    # 从Redis提取长期记忆，追加到消息列表
+    memory_key = f"{request.userId}:{session_id}"
+    memory_items = redis_client.lrange(memory_key, 0, -1)
+    for item in memory_items:
+        msg = json.loads(item)
+        if msg["role"] == "USER":
+            messages.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "ASSISTANT":
+            messages.append(AIMessage(content=msg["content"]))
+
+    # 追加系统提示
+    messages.append(SystemMessage(content="上面是与用户的历史会话，下面是用户的新问题。"
+                              "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"))
+
+    # 追加当前用户消息
+    messages.append(HumanMessage(content=request.message))
 
     # 构建LangGraph初始状态
     initial_state = {
-        "messages": [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=request.message)
-        ],
+        "messages": messages,
         "user_id": request.userId,
         "session_id": session_id,
     }
