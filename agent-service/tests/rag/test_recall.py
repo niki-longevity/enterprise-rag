@@ -5,7 +5,7 @@ RAG召回测试脚本
 指标：Hit@K、MRR（Mean Reciprocal Rank）
 """
 from src.rag.retriever import vector_store
-from tests.rag.fixed_overlap.recall_test_data_hyde import simple_test_cases, complex_test_cases, colloquial_test_cases
+from tests.rag.fixed_overlap.recall_test_data_stepback import simple_test_cases, complex_test_cases, colloquial_test_cases
 
 
 def calculate_mrr_for_query(expected_chunks, actual_chunks):

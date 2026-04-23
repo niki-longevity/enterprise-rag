@@ -22,7 +22,8 @@
       "Bash(ls *)",
       "Bash(python recall_test_data_optimized.py)",
       "Bash(python -c ' *)",
-      "Bash(python recall_test_data_hyde.py)"
+      "Bash(python recall_test_data_hyde.py)",
+      "Bash(python recall_test_data_stepback.py)"
     ]
   },
   "enabledPlugins": {
