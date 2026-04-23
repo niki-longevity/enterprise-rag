@@ -4,7 +4,7 @@ RAG召回测试脚本
 支持三种测试类型分别测试：简单问题、复杂问题、口语化问题
 """
 from src.rag.retriever import vector_store
-from tests.recall_test_data import simple_test_cases, complex_test_cases, colloquial_test_cases, test_cases
+from tests.rag.fixed_overlap.recall_test_data import simple_test_cases, complex_test_cases, colloquial_test_cases, test_cases
 
 
 def run_recall_test_for_category(test_cases, category_name, top_k=3):

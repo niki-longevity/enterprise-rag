@@ -2,7 +2,7 @@
 from src.rag.retriever import get_all_chunks
 
 chunks = get_all_chunks()
-output_path = "./固定与重叠切割.md"
+output_path = "fixed_overlap/固定与重叠切割.md"
 
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(f"# 向量库全量Chunk ({len(chunks)}个)\n\n")
