@@ -237,7 +237,6 @@ colloquial_test_cases = [
 
 # 合并所有测试用例（用于向后兼容）
 all_test_cases = simple_test_cases + complex_test_cases + colloquial_test_cases
-test_cases = all_test_cases  # 保持向后兼容
 
 if __name__ == "__main__":
     print("测试用例统计:")

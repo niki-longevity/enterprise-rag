@@ -16,7 +16,9 @@
       "Bash(npm install *)",
       "Bash(ls -la *.md)",
       "Bash(python -m src.rag.init_vector_store)",
-      "Bash(python -m tests.test_recall)"
+      "Bash(python -m tests.test_recall)",
+      "Bash(cp *)",
+      "Bash(python -m tests.test_recall_v2)"
     ]
   },
   "enabledPlugins": {
