@@ -47,5 +47,9 @@ class Settings(BaseSettings):
     redis_password: str = os.getenv("REDIS_PASSWORD", "")
     redis_db: int = int(os.getenv("REDIS_DB", "0"))
 
+    # Elasticsearch配置
+    es_host: str = os.getenv("ES_HOST", "localhost")
+    es_port: int = int(os.getenv("ES_PORT", "9200"))
+
 
 settings = Settings()

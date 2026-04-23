@@ -5,7 +5,7 @@ RAG召回测试脚本
 指标：Hit@K、MRR（Mean Reciprocal Rank）
 """
 from src.rag.retriever import vector_store
-from tests.rag.fixed_overlap.recall_test_data import simple_test_cases, complex_test_cases, colloquial_test_cases
+from tests.rag.fixed_overlap.recall_test_data_hyde import simple_test_cases, complex_test_cases, colloquial_test_cases
 
 
 def calculate_mrr_for_query(expected_chunks, actual_chunks):
@@ -255,4 +255,4 @@ def run_comprehensive_recall_test(top_k=5):
 
 if __name__ == "__main__":
     # 默认运行综合测试
-    run_comprehensive_recall_test(top_k=3)
+    run_comprehensive_recall_test(top_k=5)

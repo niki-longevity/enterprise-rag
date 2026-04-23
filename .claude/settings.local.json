@@ -19,7 +19,10 @@
       "Bash(python -m tests.test_recall)",
       "Bash(cp *)",
       "Bash(python -m tests.test_recall_v2)",
-      "Bash(ls *)"
+      "Bash(ls *)",
+      "Bash(python recall_test_data_optimized.py)",
+      "Bash(python -c ' *)",
+      "Bash(python recall_test_data_hyde.py)"
     ]
   },
   "enabledPlugins": {
