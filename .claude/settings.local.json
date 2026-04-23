@@ -23,7 +23,9 @@
       "Bash(python recall_test_data_optimized.py)",
       "Bash(python -c ' *)",
       "Bash(python recall_test_data_hyde.py)",
-      "Bash(python recall_test_data_stepback.py)"
+      "Bash(python recall_test_data_stepback.py)",
+      "Bash(python recall_test_data_multiquery.py)",
+      "Bash(python -c \"from tests.rag.test_recall_multiquery import calculate_mrr_for_query, multi_query_search; print\\('import ok'\\)\")"
     ]
   },
   "enabledPlugins": {
