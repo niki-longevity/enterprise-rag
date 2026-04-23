@@ -13,7 +13,10 @@
       "Bash(git commit -m 'refactor: 重组Agent代码结构 *)",
       "Bash(git commit *)",
       "Bash(npm create *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(ls -la *.md)",
+      "Bash(python -m src.rag.init_vector_store)",
+      "Bash(python -m tests.test_recall)"
     ]
   },
   "enabledPlugins": {
