@@ -3,6 +3,7 @@
 from typing import List
 
 import chromadb
+from dashscope.rerank.text_rerank import TextReRank
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.schema import TextNode
 from llama_index.embeddings.dashscope import DashScopeEmbedding
@@ -45,21 +46,39 @@ def add_documents(chunks: List[dict]):
     index.insert_nodes(nodes)
 
 
-def search(query: str, top_k: int = 3) -> List[dict]:
+def search(query: str, top_k: int = 5) -> List[dict]:
     """
-    搜索相关文档
+    搜索相关文档（初检 top 15 → DashScope Rerank → 返回 top_k）
     Args:
         query: 用户问题
-        top_k: 返回文档数
+        top_k: 最终返回文档数
     Returns:
         文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
     """
-    retriever = index.as_retriever(similarity_top_k=top_k)
-    results = retriever.retrieve(query)
-    return [
-        {"content": node.text, "metadata": node.metadata}
-        for node in results
-    ]
+    retriever = index.as_retriever(similarity_top_k=15)
+    nodes = retriever.retrieve(query)
+
+    # 调用 DashScope qwen3-vl-rerank 精排
+    doc_texts = [node.text for node in nodes]
+    response = TextReRank.call(
+        model="qwen3-vl-rerank",
+        query=query,
+        documents=doc_texts,
+        top_n=top_k,
+        api_key=app_settings.dashscope_api_key,
+    )
+
+    reranked = []
+    for result in response.output.results:
+        idx = result.index
+        if idx < len(nodes):
+            node = nodes[idx]
+            reranked.append({
+                "content": node.text,
+                "metadata": node.metadata,
+            })
+
+    return reranked[:top_k]
 
 
 def get_all_chunks() -> List[dict]:
