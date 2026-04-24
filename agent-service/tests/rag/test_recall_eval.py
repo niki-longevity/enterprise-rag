@@ -14,7 +14,7 @@ def run_recall_eval(test_cases, top_k=5):
     retriever = index.as_retriever(similarity_top_k=top_k)
     evaluator = RetrieverEvaluator()
 
-    query_bundles = []
+    query_bundles = [] 
     expected_ids_list = []
 
     for query, expected_chunks in test_cases:
