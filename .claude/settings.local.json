@@ -27,7 +27,12 @@
       "Bash(python recall_test_data_multiquery.py)",
       "Bash(python -c \"from tests.rag.test_recall_multiquery import calculate_mrr_for_query, multi_query_search; print\\('import ok'\\)\")",
       "Bash(pip list *)",
-      "Bash(python -c \"import dashscope; print\\(dir\\(dashscope\\)\\)\")"
+      "Bash(python -c \"import dashscope; print\\(dir\\(dashscope\\)\\)\")",
+      "Bash(python -c \"from llama_index.core.evaluation import RetrieverEvaluator; print\\([m for m in dir\\(RetrieverEvaluator\\) if not m.startswith\\('_'\\)]\\)\")",
+      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"from llama_index.core.evaluation import RetrieverEvaluator; print\\([m for m in dir\\(RetrieverEvaluator\\) if not m.startswith\\('_'\\)]\\)\")",
+      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"import inspect; from llama_index.core.evaluation import RetrieverEvaluator; print\\(inspect.signature\\(RetrieverEvaluator.evaluate\\)\\)\")",
+      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"import inspect; from llama_index.core.evaluation import RetrieverEvaluator; print\\(inspect.signature\\(RetrieverEvaluator.from_metric_names\\)\\)\")",
+      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe *)"
     ]
   },
   "enabledPlugins": {
