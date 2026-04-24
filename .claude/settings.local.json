@@ -32,7 +32,11 @@
       "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"from llama_index.core.evaluation import RetrieverEvaluator; print\\([m for m in dir\\(RetrieverEvaluator\\) if not m.startswith\\('_'\\)]\\)\")",
       "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"import inspect; from llama_index.core.evaluation import RetrieverEvaluator; print\\(inspect.signature\\(RetrieverEvaluator.evaluate\\)\\)\")",
       "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe -c \"import inspect; from llama_index.core.evaluation import RetrieverEvaluator; print\\(inspect.signature\\(RetrieverEvaluator.from_metric_names\\)\\)\")",
-      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe *)"
+      "Bash(C:/Users/15219/.conda/envs/pytorch/python.exe *)",
+      "Bash(python)",
+      "Bash(python -c 'import base64, sys; exec\\(base64.b64decode\\(sys.argv[1]\\).decode\\('\\\\''utf-8'\\\\''\\)\\)' aW1wb3J0IG9zCgpjb250ZW50ID0gJycnCsiAgICBSQUfnlKjlm57mtY/op4jmmbrogIXmlbTmuJogLSDnm7TmjqXmlLbmnI3niYgK5qC85byPOiBbcXVlcnksIFvmnJ/lr5zlj5Hlm55zIChmaWxlX25hbWUsIGNodW5rX2lkeCkg5YWD6Ieq5YiXXSksIC4uLl0K5Z6C5LqO5ZCR6YeP5b69OTTkuKpjaHVua+Wun+Wun+WGheegleermeagh+azowoyMDI2LTA0LTI0IOabtOaWs++8jOWMheWKrzjnkuq5pafnrKblk4Hnjq0oMDEtMDgpCgrkuInnp43mtY/op4jnsbvlnovvvJoKMS4g566A5Y2V6Zeu6aKY77yIMzAl77yJ77ya55u45o6l5LqL5a6e6K+m77yM562U5qGII+W4guaVsOWcqOWNleWwj+W4g+KApOiqmOacquKApiBjaHVua+S4rQoyLiDlpLHotKXpl67popgoMzAl77yJ77ya6ZyA6KaB5qOA57yW5aSa5LiqY2h1bmtmiOWIoOWkh+aKgOacr+Wxheaooe+8jOaooeaLh+ecnOWunuaWh+Wtl+W5tOaUvuivtwozLiDlj6/mrL7ljJblrqTopoHpopgoNDAl77yJ77ya5pel5bi45a+85q2j6L+b5qC877yM5Y+v5YyW5YyF5ZCr6K6w6K+G6K+1Lue7n+WtkOetieivtQoK5pS55YaZ6K6+5piO77ya5q+P5LiqIHF1ZXJ5IOWep+iiq+aUtuaYjuaIkOa7oeadsOabtOWMheeahOWugei+k++8jOS9huagueWKo+eGsuWSjCBleHBlY3RlZF9jaHVua3Mg5a6M5YWo5LiN5Yiw44CCCuespuOAge+8muaJv+acjeiAheeahGNodW5r5Y+v5Y6J5rWP5aSa5Liq5paH5q2j77yM6L+Z5Y+N5piT5LqG55yf5a6e5ZCs5pmv5LiL55qE5aSN5p2C6LCx5rGC)",
+      "Bash(python write_direct.py)",
+      "Bash(python *)"
     ]
   },
   "enabledPlugins": {
