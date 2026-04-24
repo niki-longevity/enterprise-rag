@@ -1,8 +1,8 @@
 # 文档分块
-# 使用LangChain把政策文档切分成小块，用于向量检索
+# 使用LlamaIndex把政策文档切分成小块，用于向量检索
 import re
 from typing import List
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from llama_index.core.node_parser import SentenceSplitter
 
 
 def clean_text(text: str) -> str:
@@ -34,27 +34,23 @@ def clean_text(text: str) -> str:
 
 def split_document_by_title(content: str, title: str) -> List[dict]:
     """
-    使用LangChain的RecursiveCharacterTextSplitter切分文档
+    使用LlamaIndex的SentenceSplitter切分文档
     Args:
         content: 文档内容
         title: 文档标题
     Returns:
-        文档块列表，格式: [{"title": "...", "content": "..."}]
+        文档块列表，格式: [{"title": "...", "content": "...", "file_name": "...", "chunk_idx": i}]
     """
     # 先清理文本
     content = clean_text(content)
 
-    # 使用LangChain的RecursiveCharacterTextSplitter
-    splitter = RecursiveCharacterTextSplitter(
+    splitter = SentenceSplitter(
         chunk_size=500,
         chunk_overlap=100,
-        separators=["\n\n", "\n", "。", "！", "？", " ", ""]
     )
 
-    # 切分文档
     chunks = splitter.split_text(content)
 
-    # 转换格式
     result = []
     for i, chunk_content in enumerate(chunks):
         result.append({

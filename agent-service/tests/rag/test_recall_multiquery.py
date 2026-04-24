@@ -4,7 +4,7 @@ RAG召回测试脚本 - 多Query扩展版本
 支持三种测试类型分别测试：简单问题、复杂问题、口语化问题
 指标：Hit@K、MRR（Mean Reciprocal Rank）
 """
-from src.rag.retriever import vector_store
+from src.rag.retriever import search
 from tests.rag.fixed_overlap.recall_test_data_multiquery import simple_test_cases, complex_test_cases, colloquial_test_cases
 
 
@@ -56,9 +56,9 @@ def multi_query_search(expanded_queries, top_k=3):
     merged_chunks = []
 
     for query in expanded_queries:
-        results = vector_store.similarity_search(query, top_k)
+        results = search(query, top_k)
         for doc in results:
-            chunk_key = (doc.metadata["file_name"], doc.metadata["chunk_idx"])
+            chunk_key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
             if chunk_key not in seen:
                 seen.add(chunk_key)
                 merged_chunks.append(chunk_key)

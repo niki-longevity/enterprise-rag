@@ -10,7 +10,7 @@ def search_policy(query: str) -> str:
         query: 用户的问题，如"请假需要提前几天申请？"
     """
     print("提问：", query)
-    docs = search(query, top_k=3)
-    return docs
+    results = search(query, top_k=3)
+    return "\n".join([doc["content"] for doc in results])
 
 tools = [search_policy]

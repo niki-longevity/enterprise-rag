@@ -4,8 +4,8 @@ RAG召回测试脚本
 支持三种测试类型分别测试：简单问题、复杂问题、口语化问题
 指标：Hit@K、MRR（Mean Reciprocal Rank）
 """
-from src.rag.retriever import vector_store
-from tests.rag.fixed_overlap.recall_test_data_stepback import simple_test_cases, complex_test_cases, colloquial_test_cases
+from src.rag.retriever import search
+from tests.rag.fixed_overlap.recall_test_data import simple_test_cases, complex_test_cases, colloquial_test_cases
 
 
 def calculate_mrr_for_query(expected_chunks, actual_chunks):
@@ -64,10 +64,8 @@ def run_recall_test_for_category(test_cases, category_name, top_k=3):
         expected_set = set(expected_chunks)  # {(file_name, chunk_idx), ...}
 
         # 检索
-        results = vector_store.similarity_search(query, top_k)
-        actual_set = set()
-        for doc in results:
-            actual_set.add((doc.metadata["file_name"], doc.metadata["chunk_idx"]))
+        results = search(query, top_k)
+        actual_set = {(doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"]) for doc in results}
 
         # 计算命中
         matched = expected_set & actual_set
@@ -84,7 +82,7 @@ def run_recall_test_for_category(test_cases, category_name, top_k=3):
             status = "MISS"
 
         # 计算MRR
-        actual_chunks_list = [(doc.metadata["file_name"], doc.metadata["chunk_idx"]) for doc in results]
+        actual_chunks_list = [(doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"]) for doc in results]
         reciprocal_rank, best_rank = calculate_mrr_for_query(expected_chunks, actual_chunks_list)
         reciprocal_ranks.append(reciprocal_rank)
 

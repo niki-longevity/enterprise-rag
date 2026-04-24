@@ -1,19 +1,28 @@
 # 向量检索
-# 使用LangChain + ChromaDB进行政策文档的向量存储和检索
-from typing import List, Optional
-from langchain_chroma import Chroma
-from langchain_community.embeddings import DashScopeEmbeddings
-from langchain_core.documents import Document
-from src.config.settings import settings
+# 使用LlamaIndex + ChromaDB进行政策文档的向量存储和检索
+from typing import List
 
+import chromadb
+from llama_index.core import VectorStoreIndex, Settings
+from llama_index.core.schema import TextNode
+from llama_index.embeddings.dashscope import DashScopeEmbedding
+from llama_index.vector_stores.chroma import ChromaVectorStore
 
-vector_store = Chroma(
-    collection_name="policies",
-    embedding_function=DashScopeEmbeddings(
-        model=settings.dashscope_embedding_model
-    ),
-    persist_directory=settings.chroma_db_path
+from src.config.settings import settings as app_settings
+
+# LlamaIndex 全局 embedding 配置
+Settings.embed_model = DashScopeEmbedding(
+    model_name=app_settings.dashscope_embedding_model
 )
+
+# ChromaDB 客户端
+_chroma_client = chromadb.PersistentClient(path=app_settings.chroma_db_path)
+_chroma_collection = _chroma_client.get_or_create_collection("policies")
+
+# LlamaIndex vector store + index
+_llama_vs = ChromaVectorStore(chroma_collection=_chroma_collection)
+index = VectorStoreIndex.from_vector_store(vector_store=_llama_vs)
+
 
 def add_documents(chunks: List[dict]):
     """
@@ -21,70 +30,62 @@ def add_documents(chunks: List[dict]):
     Args:
         chunks: 文档块列表，格式: [{"title": "...", "content": "..."}]
     """
-    # 转换为LangChain Document格式
-    documents = [
-        Document(
-            page_content=chunk["content"],
+    nodes = [
+        TextNode(
+            text=chunk["content"],
             metadata={
                 "title": chunk["title"],
                 "file_name": chunk["file_name"],
                 "chunk_idx": chunk["chunk_idx"]
-            }
+            },
+            id_=f"{chunk['file_name']}::{chunk['chunk_idx']}"
         )
         for chunk in chunks
     ]
+    index.insert_nodes(nodes)
 
-    # 添加到向量库
-    vector_store.add_documents(
-        documents=documents,
-        ids=[f"{chunk['file_name']}::{chunk['chunk_idx']}" for chunk in chunks]
-    )
 
-def search(query: str, top_k: int = 3) -> str:
+def search(query: str, top_k: int = 3) -> List[dict]:
     """
     搜索相关文档
     Args:
         query: 用户问题
         top_k: 返回文档数
     Returns:
-        文档列表，格式: [{"id": "...", "title": "...", "content": "..."}]
+        文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
     """
-    # 相似度搜索
-    results = vector_store.similarity_search(
-        query,
-        top_k
-    )
-    context = "\n".join([doc.page_content for doc in results])
-
-    return context
-
-def get_all_chunks() -> List[Document]:
-    """获取全量chunk"""
-    results = vector_store.get()
+    retriever = index.as_retriever(similarity_top_k=top_k)
+    results = retriever.retrieve(query)
     return [
-        Document(
-            page_content=content,
-            metadata=metadata,
-        )
-        for content, metadata in zip(results["documents"], results["metadatas"])
+        {"content": node.text, "metadata": node.metadata}
+        for node in results
     ]
 
-def get_chunks_by_file(file_name: str) -> List[Document]:
+
+def get_all_chunks() -> List[dict]:
+    """获取全量chunk，返回 [{"id": ..., "content": ..., "metadata": {...}}, ...]"""
+    results = _chroma_collection.get()
+    return [
+        {"id": id_, "content": content, "metadata": metadata}
+        for id_, content, metadata in zip(
+            results["ids"], results["documents"], results["metadatas"]
+        )
+    ]
+
+
+def get_chunks_by_file(file_name: str) -> List[dict]:
     """获取指定文档的全量chunk"""
-    results = vector_store.get(
-        where={"file_name": file_name}
-    )
+    results = _chroma_collection.get(where={"file_name": file_name})
     return [
-        Document(
-            page_content=content,
-            metadata=metadata,
+        {"id": id_, "content": content, "metadata": metadata}
+        for id_, content, metadata in zip(
+            results["ids"], results["documents"], results["metadatas"]
         )
-        for content, metadata in zip(results["documents"], results["metadatas"])
     ]
+
 
 def clear():
     """清空向量库"""
-    # 获取所有文档ID并删除
-    existing_ids = vector_store.get()["ids"]
+    existing_ids = _chroma_collection.get()["ids"]
     if existing_ids:
-        vector_store.delete(ids=existing_ids)
+        _chroma_collection.delete(ids=existing_ids)
