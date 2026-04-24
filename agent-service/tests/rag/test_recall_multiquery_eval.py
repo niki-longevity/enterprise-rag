@@ -36,7 +36,7 @@ def calculate_mrr(expected_chunks, actual_chunks):
     return 1.0 / best_rank if best_rank != float("inf") else 0.0
 
 
-def run_recall_eval(test_cases, top_k=15):
+def run_recall_eval(test_cases, top_k=5):
     total = len(test_cases)
     hit_all = 0
     hit_partial = 0
