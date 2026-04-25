@@ -3,7 +3,7 @@
 加载政策文档、分块并存入ChromaDB
 """
 from src.rag.loader import load_policy_documents
-from src.rag.splitter import split_document_by_title
+from src.rag.splitter import split_document_by_title, split_document_by_markdown_sections
 from src.rag.retriever import clear, add_documents
 
 
@@ -16,7 +16,7 @@ def init_vector_store():
     all_chunks = []
     for doc in docs:
         print(f"正在切分文档: {doc['title']}")
-        chunks = split_document_by_title(doc["content"], doc["title"])
+        chunks = split_document_by_markdown_sections(doc["content"], doc["title"])
         all_chunks.extend(chunks)
 
     print(f"共切分成 {len(all_chunks)} 个文档块")

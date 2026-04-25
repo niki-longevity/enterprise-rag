@@ -61,3 +61,61 @@ def split_document_by_title(content: str, title: str) -> List[dict]:
         })
 
     return result
+
+
+def split_document_by_markdown_sections(content: str, title: str) -> List[dict]:
+    """
+    按照Markdown文档的二级标题(##)切分文档
+    Args:
+        content: 文档内容
+        title: 文档标题
+    Returns:
+        文档块列表，格式: [{"title": "...", "content": "...", "file_name": "...", "chunk_idx": i}]
+    """
+    content = clean_text(content)
+
+    # 找到所有二级标题的位置
+    lines = content.split('\n')
+    section_positions = []  # [(line_index, section_title), ...]
+
+    for i, line in enumerate(lines):
+        match = re.match(r'^##\s+(.+)$', line)
+        if match:
+            section_positions.append((i, match.group(1).strip()))
+
+    # 按二级标题切分内容
+    chunks = []
+    num_sections = len(section_positions)
+
+    for idx, (line_no, section_title) in enumerate(section_positions):
+        # 当前section的起始行
+        start_line = line_no
+
+        # 下一个section的起始行（或文件末尾）
+        if idx + 1 < num_sections:
+            end_line = section_positions[idx + 1][0]
+        else:
+            end_line = len(lines)
+
+        # 提取当前section的内容（包含二级标题行）
+        section_lines = lines[start_line:end_line]
+        section_content = '\n'.join(section_lines).strip()
+
+        if section_content:
+            chunks.append({
+                "title": f"{title} - {section_title}",
+                "content": section_content,
+                "file_name": title,
+                "chunk_idx": len(chunks)
+            })
+
+    # 如果没有二级标题，整个文档作为一个chunk
+    if not chunks:
+        chunks.append({
+            "title": f"{title} - 全文",
+            "content": content,
+            "file_name": title,
+            "chunk_idx": 0
+        })
+
+    return chunks

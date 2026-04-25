@@ -81,4 +81,4 @@ if __name__ == "__main__":
     ]:
         total_q = sum(len(queries) for _, queries, _ in cases)
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
-        run_recall_eval(cases)
+        run_recall_eval(cases,3)
