@@ -6,7 +6,7 @@ from src.rag.retriever import search_no_rerank
 from src.es.searcher import bm25_search
 from dashscope.rerank.text_rerank import TextReRank
 from src.config.settings import settings as app_settings
-from tests.rag.title.recall_test_data_multiquery import (
+from tests.rag.title.recall_test_data_multiquery_v2 import (
     # simple_test_cases,
     complex_test_cases,
     # colloquial_test_cases,
@@ -14,7 +14,7 @@ from tests.rag.title.recall_test_data_multiquery import (
 from tests.rag.title.recall_test_data_bm25 import bm25_query_map
 
 
-def multi_retrieve(vec_queries, bm25_query, top_k=5):
+def multi_retrieve(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=5):
     """
     向量检索用 vec_queries，ES BM25检索用 bm25_query（BM25专用改写关键词），
     统一合并去重，返回文档列表
@@ -22,24 +22,24 @@ def multi_retrieve(vec_queries, bm25_query, top_k=5):
     seen = set()
     merged_docs = []
 
-    # # 向量检索（用原来的扩展query）
-    # for query in vec_queries:
-    #     vec_results = search_no_rerank(query, 5)
-    #     for doc in vec_results:
-    #         key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
-    #         if key not in seen:
-    #             seen.add(key)
-    #             merged_docs.append(doc)
-    # print(f"  向量检索结果数: {len(merged_docs)}")
+    # 向量检索（用扩展query，粗检retrieve_top_k条）
+    for query in vec_queries:
+        vec_results = search_no_rerank(query, 5)
+        for doc in vec_results:
+            key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+            if key not in seen:
+                seen.add(key)
+                merged_docs.append(doc)
+    print(f"向量检索后，剩下文档数: {len(merged_docs)}")
 
-    # # ES BM25 检索（用BM25改写后的关键词）
+    # ES BM25 检索（用BM25改写后的关键词）
     es_results = bm25_search(bm25_query, 10)
     for doc in es_results:
         key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
         if key not in seen:
             seen.add(key)
             merged_docs.append(doc)
-    print(f"  ES BM25 检索合并去重后的结果数: {len(merged_docs)}")
+    print(f"ES BM25检索后，剩下文档数: {len(merged_docs)}")
 
     return merged_docs
 
@@ -80,7 +80,7 @@ def calculate_mrr(expected_chunks, actual_chunks):
     return 1.0 / best_rank if best_rank != float("inf") else 0.0
 
 
-def run_recall_eval(test_cases, top_k=10, do_rerank=True):
+def run_recall_eval(test_cases, retrieve_top_k=10, rerank_top_k=5, do_rerank=True):
     total = len(test_cases)
     hit_all = 0
     hit_partial = 0
@@ -93,16 +93,16 @@ def run_recall_eval(test_cases, top_k=10, do_rerank=True):
         bm25_query = bm25_query_map.get(original_query, original_query)
 
         # 多路召回：向量(用扩展query) + ES(用BM25改写query)，统一合并去重
-        merged_docs = multi_retrieve(expanded_queries, bm25_query, top_k)
+        merged_docs = multi_retrieve(expanded_queries, bm25_query, retrieve_top_k, rerank_top_k)
 
-        # 是否精排
+        # 是否精排（用意图提纯query，即expanded_queries[0]）
         if do_rerank and merged_docs:
-            actual_chunks = rerank_merged(original_query, merged_docs, top_k=5)
+            actual_chunks = rerank_merged(original_query, merged_docs, top_k=rerank_top_k)
         else:
             actual_chunks = [
                 (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
                 for doc in merged_docs
-            ][:top_k]
+            ][:rerank_top_k]
 
         print(f"精排后，剩下文档数: {len(actual_chunks)}")
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
 
         # 多路召回，不精排
-        # run_recall_eval(cases, top_k=5, do_rerank=False)
+        # run_recall_eval(cases, retrieve_top_k=10, rerank_top_k=5, do_rerank=False)
 
-        # 多路召回 + 精排
-        run_recall_eval(cases, top_k=5, do_rerank=True)
+        # 多路召回 + 精排（精排用意图提纯query）
+        run_recall_eval(cases, retrieve_top_k=10, rerank_top_k=5, do_rerank=True)

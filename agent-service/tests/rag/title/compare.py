@@ -1,4 +1,4 @@
-from tests.rag.title.recall_test_data import complex_test_cases
+from tests.rag.title.recall_test_data_multiquery_v2 import complex_test_cases
 from tests.rag.title.recall_test_data_bm25 import bm25_test_cases
 
 def compare_first_items(list_a, list_b):
