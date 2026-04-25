@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     dashscope_api_key: str = os.getenv("DASHSCOPE_API_KEY", "")
 
     # DeepSeek API配置（从系统环境变量DEEPSEEK_API_KEY读取）
-    deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
-    deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    tencent_api_key: str = os.getenv("Tencent_API_KEY")
+    tencent_base_url: str = "https://api.lkeap.cloud.tencent.com/plan/v3"
+    tencent_model: str = "hy3-preview"
 
     # 阿里云Embedding模型
     dashscope_embedding_model: str = "text-embedding-v2"

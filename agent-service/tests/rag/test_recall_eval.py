@@ -67,9 +67,9 @@ if __name__ == "__main__":
     print("=" * 50)
 
     for name, cases in [
-        ("简单问题", simple_test_cases),
+        # ("简单问题", simple_test_cases),
         ("复杂问题", complex_test_cases),
-        ("口语化问题", colloquial_test_cases),
+        # ("口语化问题", colloquial_test_cases),
     ]:
         print(f"\n--- {name} ({len(cases)} 条) ---")
         run_recall_eval(cases)

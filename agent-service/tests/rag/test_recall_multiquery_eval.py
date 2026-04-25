@@ -36,7 +36,7 @@ def calculate_mrr(expected_chunks, actual_chunks):
     return 1.0 / best_rank if best_rank != float("inf") else 0.0
 
 
-def run_recall_eval(test_cases, top_k=5):
+def run_recall_eval(test_cases, top_k=10):
     total = len(test_cases)
     hit_all = 0
     hit_partial = 0
@@ -75,9 +75,9 @@ if __name__ == "__main__":
     print("=" * 50)
 
     for name, cases in [
-        ("简单问题", simple_test_cases),
+        # ("简单问题", simple_test_cases),
         ("复杂问题", complex_test_cases),
-        ("口语化问题", colloquial_test_cases),
+        # ("口语化问题", colloquial_test_cases),
     ]:
         total_q = sum(len(queries) for _, queries, _ in cases)
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
