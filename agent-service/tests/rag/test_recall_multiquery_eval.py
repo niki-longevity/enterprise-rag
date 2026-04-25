@@ -1,27 +1,49 @@
 """
 多Query扩展召回测试
-对每个用例的多个扩展 query 分别检索，合并去重后计算 Hit Rate 和 MRR
+对每个用例的多个扩展 query 分别检索，合并去重后精排，计算 Hit Rate 和 MRR
 """
-from src.rag.retriever import search
-from tests.rag.fixed_overlap.recall_test_data_multiquery import (
-    simple_test_cases,
+from src.rag.retriever import search_no_rerank
+from dashscope.rerank.text_rerank import TextReRank
+from src.config.settings import settings as app_settings
+from tests.rag.title.recall_test_data_multiquery import (
+    # simple_test_cases,
     complex_test_cases,
-    colloquial_test_cases,
+    # colloquial_test_cases,
 )
 
 
-def multi_query_search(expanded_queries, top_k):
-    """对多个扩展查询分别检索，合并去重，按首次出现顺序排列"""
+def multi_query_search(original_query, expanded_queries, top_k=5):
+    """对多个扩展查询分别检索，合并去重，精排后返回 top_k"""
+    # 1. 对每个扩展查询检索（不精排）
     seen = set()
-    merged = []
+    merged_docs = []
     for query in expanded_queries:
-        results = search(query, top_k)
+        results = search_no_rerank(query, top_k)
         for doc in results:
             key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
             if key not in seen:
                 seen.add(key)
-                merged.append(key)
-    return merged
+                merged_docs.append(doc)
+
+    # 2. 合并后用原始query精排
+    if merged_docs:
+        doc_texts = [doc["content"] for doc in merged_docs]
+        response = TextReRank.call(
+            model="qwen3-vl-rerank",
+            query=original_query,
+            documents=doc_texts,
+            top_n=top_k,
+            api_key=app_settings.dashscope_api_key,
+        )
+        reranked = []
+        for result in response.output.results:
+            idx = result.index
+            if idx < len(merged_docs):
+                doc = merged_docs[idx]
+                reranked.append((doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"]))
+        return reranked[:top_k]
+
+    return []
 
 
 def calculate_mrr(expected_chunks, actual_chunks):
@@ -47,7 +69,7 @@ def run_recall_eval(test_cases, top_k=10):
     for original_query, expanded_queries, expected_chunks in test_cases:
         expected_set = set(expected_chunks)
 
-        actual_chunks = multi_query_search(expanded_queries, top_k)
+        actual_chunks = multi_query_search(original_query, expanded_queries, top_k)
         matched = expected_set & set(actual_chunks)
         hit_rate = len(matched) / len(expected_set)
 
@@ -81,4 +103,4 @@ if __name__ == "__main__":
     ]:
         total_q = sum(len(queries) for _, queries, _ in cases)
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
-        run_recall_eval(cases,3)
+        run_recall_eval(cases)

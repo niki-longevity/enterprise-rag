@@ -81,6 +81,27 @@ def search(query: str, top_k: int = 5) -> List[dict]:
     return reranked[:top_k]
 
 
+def search_no_rerank(query: str, top_k: int = 5) -> List[dict]:
+    """
+    搜索相关文档（纯向量检索，无精排）
+    Args:
+        query: 用户问题
+        top_k: 返回文档数
+    Returns:
+        文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
+    """
+    retriever = index.as_retriever(similarity_top_k=top_k)
+    nodes = retriever.retrieve(query)
+
+    return [
+        {
+            "content": node.text,
+            "metadata": node.metadata,
+        }
+        for node in nodes
+    ]
+
+
 def get_all_chunks() -> List[dict]:
     """获取全量chunk，返回 [{"id": ..., "content": ..., "metadata": {...}}, ...]"""
     results = _chroma_collection.get()
