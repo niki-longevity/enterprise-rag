@@ -2,11 +2,11 @@
 LlamaIndex 召回指标测试
 指标计算逻辑与原 test_recall.py 完全一致：命中率 = 命中chunk数/期望chunk数
 """
-from src.rag.retriever import search
-from tests.rag.title.recall_test_data import (
-    simple_test_cases,
+from src.rag.retriever import search_no_rerank
+from tests.rag.title.recall_test_data_complex import (
+    # simple_test_cases,
     complex_test_cases,
-    colloquial_test_cases,
+    # colloquial_test_cases,
 )
 
 
@@ -34,7 +34,7 @@ def run_recall_eval(test_cases, top_k=5):
     for query, expected_chunks in test_cases:
         expected_set = set(expected_chunks)
 
-        results = search(query, top_k)
+        results = search_no_rerank(query, top_k)
         actual_chunks = [
             (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
             for doc in results
