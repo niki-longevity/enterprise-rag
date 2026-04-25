@@ -22,22 +22,24 @@ def multi_retrieve(vec_queries, bm25_query, top_k=5):
     seen = set()
     merged_docs = []
 
-    # 向量检索（用原来的扩展query）
-    for query in vec_queries:
-        vec_results = search_no_rerank(query, top_k)
-        for doc in vec_results:
-            key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
-            if key not in seen:
-                seen.add(key)
-                merged_docs.append(doc)
+    # # 向量检索（用原来的扩展query）
+    # for query in vec_queries:
+    #     vec_results = search_no_rerank(query, 5)
+    #     for doc in vec_results:
+    #         key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+    #         if key not in seen:
+    #             seen.add(key)
+    #             merged_docs.append(doc)
+    # print(f"  向量检索结果数: {len(merged_docs)}")
 
     # # ES BM25 检索（用BM25改写后的关键词）
-    # es_results = bm25_search(bm25_query, 10)
-    # for doc in es_results:
-    #     key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
-    #     if key not in seen:
-    #         seen.add(key)
-    #         merged_docs.append(doc)
+    es_results = bm25_search(bm25_query, 10)
+    for doc in es_results:
+        key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+        if key not in seen:
+            seen.add(key)
+            merged_docs.append(doc)
+    print(f"  ES BM25 检索合并去重后的结果数: {len(merged_docs)}")
 
     return merged_docs
 
@@ -101,6 +103,8 @@ def run_recall_eval(test_cases, top_k=10, do_rerank=True):
                 (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
                 for doc in merged_docs
             ][:top_k]
+
+        print(f"精排后，剩下文档数: {len(actual_chunks)}")
 
         matched = expected_set & set(actual_chunks)
         hit_rate = len(matched) / len(expected_set)
