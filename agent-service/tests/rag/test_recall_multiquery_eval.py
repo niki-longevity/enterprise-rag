@@ -6,12 +6,12 @@ from src.rag.retriever import search_no_rerank
 from src.es.searcher import bm25_search
 from dashscope.rerank.text_rerank import TextReRank
 from src.config.settings import settings as app_settings
-from tests.rag.title.recall_test_data import (
+from tests.rag.title.recall_test_data_multiquery_v3 import (
     # simple_test_cases,
     complex_test_cases,
     # colloquial_test_cases,
 )
-# from tests.rag.title.recall_test_data_bm25 import bm25_query_map
+from tests.rag.title.recall_test_data_bm25_v2 import bm25_query_map
 
 
 # 第一种方案（已废弃，保留注释）
@@ -35,7 +35,7 @@ def multi_retrieve_v2(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=2
                 model="qwen3-vl-rerank",
                 query=query,  # 用自己的query
                 documents=doc_texts,
-                top_n=5,
+                top_n=2,
                 api_key=app_settings.dashscope_api_key,
             )
             for result in response.output.results:
@@ -47,25 +47,25 @@ def multi_retrieve_v2(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=2
                         seen.add(key)
                         merged_docs.append(doc)
 
-    # # BM25检索：1个query，独立检索+精排
-    # es_results = bm25_search(bm25_query, 10)
-    # if es_results:
-    #     doc_texts = [doc["content"] for doc in es_results]
-    #     response = TextReRank.call(
-    #         model="qwen3-vl-rerank",
-    #         query=vec_queries[0],  # 用意图提纯后的 query
-    #         documents=doc_texts,
-    #         top_n=5,
-    #         api_key=app_settings.dashscope_api_key,
-    #     )
-    #     for result in response.output.results:
-    #         idx = result.index
-    #         if idx < len(es_results):
-    #             doc = es_results[idx]
-    #             key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
-    #             if key not in seen:
-    #                 seen.add(key)
-    #                 merged_docs.append(doc)
+    # BM25检索：1个query，独立检索+精排
+    es_results = bm25_search(bm25_query, 10)
+    if es_results:
+        doc_texts = [doc["content"] for doc in es_results]
+        response = TextReRank.call(
+            model="qwen3-vl-rerank",
+            query=vec_queries[0],  # 用意图提纯后的 query
+            documents=doc_texts,
+            top_n=2,
+            api_key=app_settings.dashscope_api_key,
+        )
+        for result in response.output.results:
+            idx = result.index
+            if idx < len(es_results):
+                doc = es_results[idx]
+                key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+                if key not in seen:
+                    seen.add(key)
+                    merged_docs.append(doc)
 
     return merged_docs
 
@@ -117,8 +117,7 @@ def run_recall_eval(test_cases, retrieve_top_k=10, rerank_top_k=2):
 
     for original_query, expanded_queries, expected_chunks in test_cases:
         expected_set = set(expected_chunks)
-        # bm25_query = bm25_query_map.get(original_query, original_query)
-        bm25_query = original_query
+        bm25_query = bm25_query_map.get(original_query, original_query)
 
         # 第二种方案：每个query独立检索+精排，合并去重
         merged_docs = multi_retrieve_v2(expanded_queries, bm25_query, retrieve_top_k, rerank_top_k)
@@ -167,4 +166,4 @@ if __name__ == "__main__":
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
 
         # 第二种方案：每个query独立检索+精排，各取top2，共约8个
-        run_recall_eval(cases, retrieve_top_k=10, rerank_top_k=3)
+        run_recall_eval(cases, retrieve_top_k=10, rerank_top_k=5)
