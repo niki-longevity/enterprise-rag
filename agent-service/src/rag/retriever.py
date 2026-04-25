@@ -55,7 +55,7 @@ def search(query: str, top_k: int = 5) -> List[dict]:
     Returns:
         文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
     """
-    retriever = index.as_retriever(similarity_top_k=15)
+    retriever = index.as_retriever(similarity_top_k=5)
     nodes = retriever.retrieve(query)
 
     # 调用 DashScope qwen3-vl-rerank 精排
