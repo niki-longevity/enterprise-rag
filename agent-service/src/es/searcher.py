@@ -58,7 +58,7 @@ if __name__ == "__main__":
     query = "上班时间是几点"
     test_query = "公司上班打卡规定"
     print(f"查询: {test_query}")
-    results = bm25_search(test_query, top_k=3)
+    results = bm25_search(test_query, top_k=1)
     print(f"命中 {len(results)} 条:")
     for i, doc in enumerate(results):
         print(f"\n{i+1}. {doc['metadata']['file_name']} | chunk_idx={doc['metadata']['chunk_idx']}")

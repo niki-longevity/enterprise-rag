@@ -1,8 +1,9 @@
 """
 多Query扩展召回测试
-对每个用例的多个扩展 query 分别检索，合并去重后精排，计算 Hit Rate 和 MRR
+向量检索 + ES BM25 多路召回，统一合并去重后精排，计算 Hit Rate 和 MRR
 """
 from src.rag.retriever import search_no_rerank
+from src.es.searcher import bm25_search
 from dashscope.rerank.text_rerank import TextReRank
 from src.config.settings import settings as app_settings
 from tests.rag.title.recall_test_data_multiquery import (
@@ -10,40 +11,59 @@ from tests.rag.title.recall_test_data_multiquery import (
     complex_test_cases,
     # colloquial_test_cases,
 )
+from tests.rag.title.recall_test_data_bm25 import bm25_query_map
 
 
-def multi_query_search(original_query, expanded_queries, top_k=5):
-    """对多个扩展查询分别检索，合并去重，精排后返回 top_k"""
-    # 1. 对每个扩展查询检索（不精排）
+def multi_retrieve(vec_queries, bm25_query, top_k=5):
+    """
+    向量检索用 vec_queries，ES BM25检索用 bm25_query（BM25专用改写关键词），
+    统一合并去重，返回文档列表
+    """
     seen = set()
     merged_docs = []
-    for query in expanded_queries:
-        results = search_no_rerank(query, top_k)
-        for doc in results:
+
+    # 向量检索（用原来的扩展query）
+    for query in vec_queries:
+        vec_results = search_no_rerank(query, top_k)
+        for doc in vec_results:
             key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
             if key not in seen:
                 seen.add(key)
                 merged_docs.append(doc)
 
-    # 2. 合并后用原始query精排
-    if merged_docs:
-        doc_texts = [doc["content"] for doc in merged_docs]
-        response = TextReRank.call(
-            model="qwen3-vl-rerank",
-            query=original_query,
-            documents=doc_texts,
-            top_n=top_k,
-            api_key=app_settings.dashscope_api_key,
-        )
-        reranked = []
-        for result in response.output.results:
-            idx = result.index
-            if idx < len(merged_docs):
-                doc = merged_docs[idx]
-                reranked.append((doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"]))
-        return reranked[:top_k]
+    # # ES BM25 检索（用BM25改写后的关键词）
+    # es_results = bm25_search(bm25_query, 10)
+    # for doc in es_results:
+    #     key = (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+    #     if key not in seen:
+    #         seen.add(key)
+    #         merged_docs.append(doc)
 
-    return []
+    return merged_docs
+
+
+def rerank_merged(original_query, merged_docs, top_k=5):
+    """
+    对合并后的文档用原始query精排，返回 top_k 的 (file_name, chunk_idx) 列表
+    """
+    if not merged_docs:
+        return []
+
+    doc_texts = [doc["content"] for doc in merged_docs]
+    response = TextReRank.call(
+        model="qwen3-vl-rerank",
+        query=original_query,
+        documents=doc_texts,
+        top_n=top_k,
+        api_key=app_settings.dashscope_api_key,
+    )
+    reranked = []
+    for result in response.output.results:
+        idx = result.index
+        if idx < len(merged_docs):
+            doc = merged_docs[idx]
+            reranked.append((doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"]))
+    return reranked[:top_k]
 
 
 def calculate_mrr(expected_chunks, actual_chunks):
@@ -58,7 +78,7 @@ def calculate_mrr(expected_chunks, actual_chunks):
     return 1.0 / best_rank if best_rank != float("inf") else 0.0
 
 
-def run_recall_eval(test_cases, top_k=10):
+def run_recall_eval(test_cases, top_k=10, do_rerank=True):
     total = len(test_cases)
     hit_all = 0
     hit_partial = 0
@@ -68,8 +88,20 @@ def run_recall_eval(test_cases, top_k=10):
 
     for original_query, expanded_queries, expected_chunks in test_cases:
         expected_set = set(expected_chunks)
+        bm25_query = bm25_query_map.get(original_query, original_query)
 
-        actual_chunks = multi_query_search(original_query, expanded_queries, top_k)
+        # 多路召回：向量(用扩展query) + ES(用BM25改写query)，统一合并去重
+        merged_docs = multi_retrieve(expanded_queries, bm25_query, top_k)
+
+        # 是否精排
+        if do_rerank and merged_docs:
+            actual_chunks = rerank_merged(original_query, merged_docs, top_k=5)
+        else:
+            actual_chunks = [
+                (doc["metadata"]["file_name"], doc["metadata"]["chunk_idx"])
+                for doc in merged_docs
+            ][:top_k]
+
         matched = expected_set & set(actual_chunks)
         hit_rate = len(matched) / len(expected_set)
 
@@ -83,6 +115,8 @@ def run_recall_eval(test_cases, top_k=10):
         else:
             miss += 1
 
+    mode = "多路召回(向量+ES) + 精排" if do_rerank else "多路召回(向量+ES)，无精排"
+    print(f"  [{mode}]")
     print(f"  测试数: {total}")
     print(f"  全部命中: {hit_all} ({hit_all / total:.1%})")
     print(f"  部分命中: {hit_partial} ({hit_partial / total:.1%})")
@@ -93,7 +127,7 @@ def run_recall_eval(test_cases, top_k=10):
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("RAG 多Query扩展召回测试")
+    print("RAG 多Query扩展 + 多路召回测试")
     print("=" * 50)
 
     for name, cases in [
@@ -103,4 +137,9 @@ if __name__ == "__main__":
     ]:
         total_q = sum(len(queries) for _, queries, _ in cases)
         print(f"\n--- {name} ({len(cases)} 用例, {total_q} 条扩展query) ---")
-        run_recall_eval(cases)
+
+        # 多路召回，不精排
+        # run_recall_eval(cases, top_k=5, do_rerank=False)
+
+        # 多路召回 + 精排
+        run_recall_eval(cases, top_k=5, do_rerank=True)

@@ -22,13 +22,13 @@ def create_index():
     if es.indices.exists(index=INDEX_NAME):
         es.indices.delete(index=INDEX_NAME)
 
-    # 创建索引 with mapping
+    # 创建索引 with mapping（使用 IK 中文分词器）
     mapping = {
         "mappings": {
             "properties": {
                 "id": {"type": "keyword"},
-                "content": {"type": "text", "analyzer": "standard"},
-                "title": {"type": "text"},
+                "content": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+                "title": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
                 "file_name": {"type": "keyword"},
                 "chunk_idx": {"type": "integer"},
             }
@@ -65,6 +65,7 @@ def index_chunks():
 
     if docs:
         es.bulk(body=docs)
+        es.indices.refresh(index=INDEX_NAME)
         print(f"已写入 {len(chunks)} 个 chunk 到 ES 索引 '{INDEX_NAME}'")
     else:
         print("没有 chunk 可写入")
@@ -80,8 +81,8 @@ def delete_index():
 
 
 if __name__ == "__main__":
-    create_index()
-    index_chunks()
+    # create_index()
+    # index_chunks()
     # 验证
     count = es.count(index=INDEX_NAME)["count"]
     print(f"\n验证: ES 索引中有 {count} 个文档")
