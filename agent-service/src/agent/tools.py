@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from src.es.searcher import bm25_search
 from src.rag.retriever import search, search_no_rerank
 from src.config.settings import settings
+from src.skills.warm_up import get_skill_content
 
 
 @tool
@@ -49,8 +50,18 @@ def view_file(file1: int, file2: int) -> str:
         file1: 多Query改写指导，需要查看填1，否则填0
         file2: BM25 改写指导，需要查看填1，否则填0
     """
-    results = ""
-    return "\n".join([doc for doc in results])
+    parts = []
+    if file1 == 1:
+        content = get_skill_content("skill:guide:multiquery")
+        parts.append(f"【多Query改写指导】\n{content}" if content else
+                     "【多Query改写指导】\n（文件未找到）")
+    if file2 == 1:
+        content = get_skill_content("skill:guide:bm25")
+        parts.append(f"【BM25改写指导】\n{content}" if content else
+                     "【BM25改写指导】\n（文件未找到）")
+    if not parts:
+        return "未选择查看任何文件"
+    return "\n\n".join(parts)
 
 
 tools = [simple_retrieve_policy, es_retrieve_policy, complex_retrieve_policy, view_file]

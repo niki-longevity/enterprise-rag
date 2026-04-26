@@ -52,9 +52,9 @@ class Settings(BaseSettings):
     es_port: int = int(os.getenv("ES_PORT", "9200"))
 
     # MinIO配置
-    minio_host = "172.22.32.238:9000"
-    minio_access_key = "root"
-    minio_secret_key = "88888888"
+    minio_host: str = "172.22.32.238:9000"
+    minio_access_key: str = "root"
+    minio_secret_key: str = "88888888"
 
 
 settings = Settings()
