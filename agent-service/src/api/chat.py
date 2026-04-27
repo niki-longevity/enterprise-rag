@@ -11,7 +11,7 @@ from src.agent.nodes import get_llm
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
-from src.db.redis import redis_client
+from src.config.client import redis_client
 import json
 import threading
 
