@@ -34,4 +34,4 @@ def should_continue(state) -> Literal["tools", "end"]:
     return "end"
 
 
-tool_node = ToolNode(tools)
+tool_node = ToolNode(tools,handle_tool_errors= True)

@@ -113,7 +113,7 @@ async def chat_stream_impl(
         full_reply = ""
         try:
             # 真正的流式：使用 astream_events 实时获取 LLM 输出
-            async for event in agent_graph.astream_events(initial_state, version="v2"):
+            async for event in agent_graph.astream_events(initial_state, version="v2", config={"recursion_limit": 20}):
                 if event["event"] == "on_chat_model_stream":
                     chunk = event["data"]["chunk"].content
                     if chunk:
