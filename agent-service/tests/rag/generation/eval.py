@@ -194,6 +194,44 @@ def evaluate_category(cases: List[Tuple[str, list]], name: str,
             "relevancy": relev_sum / n}
 
 
+def evaluate_one_to_file(args: Tuple[int, str]) -> Tuple[int, int, int]:
+    """评估单个用例并写入独立 .md 文件，返回 (idx, faith_score, relev_score)"""
+    idx, query = args
+    r = evaluate_one(query)
+
+    md = (
+        f"# [{idx}] {query}\n\n"
+        f"## Agent 回答\n\n{r['answer']}\n\n"
+        f"## Agent 检索上下文\n\n{r['context'][:3000]}\n\n"
+        f"## Faithfulness: **{r['faithful_score']}/5**\n\n> {r['faithful_reason']}\n\n"
+        f"## Answer Relevancy: **{r['relevant_score']}/5**\n\n> {r['relevant_reason']}\n"
+    )
+    out_path = f"eval_case_{idx:02d}.md"
+    Path(out_path).write_text(md, encoding="utf-8")
+    print(f"  [{idx:2d}] 完成 → {out_path}  Faith={r['faithful_score']}/5  Relev={r['relevant_score']}/5")
+    return idx, r["faithful_score"], r["relevant_score"]
+
+
+def evaluate_category_parallel(cases: List[Tuple[str, list]], name: str,
+                               workers: int = 5, start_idx: int = 1):
+    """并行评估一组测试用例，每个用例输出独立的 .md"""
+    from concurrent.futures import ThreadPoolExecutor
+    queries = [(i, query) for i, (query, _expected) in enumerate(cases, start_idx)]
+
+    print(f"{'='*60}")
+    print(f"  {name} ({len(cases)} cases, {workers} parallel)")
+    print(f"{'='*60}")
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        results = list(executor.map(evaluate_one_to_file, queries))
+
+    faith_sum = sum(r[1] for r in results)
+    relev_sum = sum(r[2] for r in results)
+    n = len(cases)
+
+    print(f"\n  Faith={faith_sum/n:.1f}/5  Relev={relev_sum/n:.1f}/5  ({n} cases)")
+
+
 if __name__ == "__main__":
-    evaluate_category(complex_test_cases[:5], "Complex",
-                      report_path="eval_complex_report.md")
+    evaluate_category_parallel(complex_test_cases[25:45], "Complex",
+                               workers=20, start_idx=26)

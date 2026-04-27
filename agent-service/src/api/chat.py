@@ -89,9 +89,10 @@ async def chat_stream_impl(
         elif msg["role"] == "SUMMARY":
             messages.append(SystemMessage(content="历史对话摘要：" + msg["content"]))
 
-    messages.append(SystemMessage(content="上面是与用户的历史会话，下面是用户的新问题，请确保回答内容量适中。"
-                                          "只要是关于公司政策的问询，严格根据检索到的内容来回答，严禁杜撰回答，不知道告诉用户不知道、不了解之类的。"
-                                  "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"))
+    messages.append(SystemMessage(content="你是公司的政策、规定问询顾问。"
+                                          "上面是与用户的历史会话，下面是用户的新问题，请确保回答内容量简练精要。"
+                                          "只要是关于公司政策、规定的问询，严格根据检索到的内容来回答，严禁杜撰回答，不知道就告诉用户不知道、不了解之类的。"
+                                        "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"))
     messages.append(HumanMessage(content=message))
 
     initial_state = {
