@@ -15,6 +15,17 @@ from src.es.indexer import (
 )
 
 REDIS_GRAY_FILES_KEY = "policies:gray:files"
+REDIS_ETAG_PREFIX = "policies:etag:"
+
+
+def _stored_etag(file_name: str) -> str:
+    """获取上次处理的 etag"""
+    return redis_client.get(f"{REDIS_ETAG_PREFIX}{file_name}") or ""
+
+
+def _store_etag(file_name: str, etag: str):
+    """存储本次处理的 etag"""
+    redis_client.set(f"{REDIS_ETAG_PREFIX}{file_name}", etag)
 
 
 def init_policies():
@@ -47,18 +58,26 @@ def init_policies():
     return len(all_chunks)
 
 
-def handle_file_update(file_name: str):
+def handle_file_update(file_name: str, etag: str = ""):
     """
     MinIO webhook 触发：
-      ① 下载变更文件 → 切分 → 写入灰度数据 (is_gray=True)
-      ② 文件名加入 Redis Set: policies:gray:files
+      ① etag 比对，内容未变则跳过
+      ② 下载变更文件 → 切分 → 写入灰度数据 (is_gray=True)
+      ③ 文件名加入 Redis Set: policies:gray:files
+      ④ 存储 etag 防止重复处理
 
     此时：
       - 线上用户查 is_gray=False → 命中旧数据（不受影响）
       - 灰度流量走复杂条件 → 该文件命中新数据
     """
-    content = download_file(file_name)
     title = Path(file_name).stem
+
+    # etag 去重：内容未变更则跳过
+    if etag and etag == _stored_etag(file_name):
+        print(f"跳过: {file_name} (etag 未变更)")
+        return
+
+    content = download_file(file_name)
     new_chunks = split_document_by_markdown_sections(content, title)
     print(f"灰度更新: {file_name} → {len(new_chunks)} chunks")
 
@@ -73,7 +92,11 @@ def handle_file_update(file_name: str):
     # 3. 文件名加入灰度集
     redis_client.sadd(REDIS_GRAY_FILES_KEY, title)
 
-    # 4. 刷新灰度配置（感知 Nacos 最新设置）
+    # 4. 存储 etag
+    if etag:
+        _store_etag(file_name, etag)
+
+    # 5. 刷新灰度配置（感知 Nacos 最新设置）
     gray_config.refresh()
 
     print(f"  灰度 chunks 已写入 (is_gray=True)，文件已加入灰度集")
@@ -134,32 +157,29 @@ def rollback_file(file_name: str):
 
 def handle_file_delete(file_name: str):
     """
-    MinIO 文件被删除：直接删除该文件的所有数据（is_gray=True 和 False），
-    清理 Redis 灰度集。无需走灰度流程。
+    MinIO 文件被删除：
+      - 若文件在灰度集中 → 仅删灰度数据 (is_gray=True)，保留旧数据（回滚行为）
+      - 若不在灰度集中 → 删除所有数据（正常清理）
+    同步清理 Redis 灰度集和 etag。
     """
     title = Path(file_name).stem
-    print(f"删除: {title}")
+    is_gray = redis_client.sismember(REDIS_GRAY_FILES_KEY, title)
 
-    chroma_delete(title)  # 不指定 is_gray，删除所有
-    es_delete(title)
-    redis_client.srem(REDIS_GRAY_FILES_KEY, title)
-    print(f"  文件数据已全部清除")
+    if is_gray:
+        print(f"删除(灰度回滚): {title}")
+        chroma_delete(title, is_gray=True)
+        es_delete(title, is_gray=True)
+        redis_client.srem(REDIS_GRAY_FILES_KEY, title)
+        redis_client.delete(f"{REDIS_ETAG_PREFIX}{file_name}")
+        print(f"  灰度数据已清除，旧数据保留")
+    else:
+        print(f"删除: {title}")
+        chroma_delete(title)
+        es_delete(title)
+        redis_client.srem(REDIS_GRAY_FILES_KEY, title)
+        redis_client.delete(f"{REDIS_ETAG_PREFIX}{file_name}")
+        print(f"  文件数据已全部清除")
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        cmd = sys.argv[1]
-        fname = sys.argv[2] if len(sys.argv) > 2 else None
-        if cmd == "init":
-            init_policies()
-        elif cmd == "update" and fname:
-            handle_file_update(fname)
-        elif cmd == "finalize" and fname:
-            finalize_promotion(fname)
-        elif cmd == "rollback" and fname:
-            rollback_file(fname)
-        else:
-            print("用法: python gray_updater.py init|update|finalize|rollback [file_name]")
-    else:
-        print("用法: python gray_updater.py init|update|finalize|rollback [file_name]")
+    finalize_promotion("09测试文件.md")
