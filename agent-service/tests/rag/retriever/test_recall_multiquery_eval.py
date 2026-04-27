@@ -6,12 +6,12 @@ from src.rag.retriever import search_no_rerank
 from src.es.searcher import bm25_search
 from dashscope.rerank.text_rerank import TextReRank
 from src.config.settings import settings as app_settings
-from tests.rag.title.recall_test_data_multiquery_v3 import (
+from tests.rag.retriever.title.recall_test_data_multiquery_v3 import (
     # simple_test_cases,
     complex_test_cases,
     # colloquial_test_cases,
 )
-from tests.rag.title.recall_test_data_bm25_v2 import bm25_query_map
+from tests.rag.retriever.title.recall_test_data_bm25_v2 import bm25_query_map
 
 
 # 第一种方案（已废弃，保留注释）

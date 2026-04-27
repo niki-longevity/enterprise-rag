@@ -53,7 +53,9 @@
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip show nacos-sdk-python)",
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install 'nacos-sdk-python>=2.0,<3.0')",
       "Bash(rm \"D:\\\\Project\\\\employee_assistant_Agent\\\\agent-service\\\\src\\\\db\\\\redis.py\")",
-      "Bash(rm \"D:\\\\Project\\\\employee_assistant_Agent\\\\agent-service\\\\src\\\\es\\\\test.py\")"
+      "Bash(rm \"D:\\\\Project\\\\employee_assistant_Agent\\\\agent-service\\\\src\\\\es\\\\test.py\")",
+      "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install langfuse)",
+      "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install 'langfuse>=2.0.0,<3.0.0')"
     ]
   },
   "enabledPlugins": {

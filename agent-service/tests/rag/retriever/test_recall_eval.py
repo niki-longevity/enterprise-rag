@@ -3,7 +3,7 @@ LlamaIndex 召回指标测试
 指标计算逻辑与原 test_recall.py 完全一致：命中率 = 命中chunk数/期望chunk数
 """
 from src.rag.retriever import search_no_rerank
-from tests.rag.title.recall_test_data_complex import (
+from tests.rag.retriever.title.recall_test_data_complex import (
     # simple_test_cases,
     complex_test_cases,
     # colloquial_test_cases,
