@@ -1,6 +1,7 @@
 # 向量检索
 # 使用LlamaIndex + ChromaDB进行政策文档的向量存储和检索
-from typing import List
+# 通过 is_gray 元数据区分线上/灰度数据，支持 Nacos 控制渐进式流量分流
+from typing import List, Optional
 
 import chromadb
 from dashscope.rerank.text_rerank import TextReRank
@@ -10,101 +11,184 @@ from llama_index.embeddings.dashscope import DashScopeEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from src.config.settings import settings as app_settings
+from src.config.client import redis_client
+from src.config.gray_config import gray_config
 
 # LlamaIndex 全局 embedding 配置
 Settings.embed_model = DashScopeEmbedding(
     model_name=app_settings.dashscope_embedding_model
 )
 
-# ChromaDB 客户端
+# ChromaDB 持久化客户端
 _chroma_client = chromadb.PersistentClient(path=app_settings.chroma_db_path)
-_chroma_collection = _chroma_client.get_or_create_collection("policies")
 
-# LlamaIndex vector store + index
-_llama_vs = ChromaVectorStore(chroma_collection=_chroma_collection)
-index = VectorStoreIndex.from_vector_store(vector_store=_llama_vs)
+# 固定 collection 名
+COLLECTION_NAME = "policies"
+
+# 模块加载时初始化
+_collection = _chroma_client.get_or_create_collection(COLLECTION_NAME)
+_vs = ChromaVectorStore(chroma_collection=_collection)
+index = VectorStoreIndex.from_vector_store(vector_store=_vs)
 
 
-def add_documents(chunks: List[dict]):
-    """
-    添加文档块到向量库
-    Args:
-        chunks: 文档块列表，格式: [{"title": "...", "content": "..."}]
-    """
+def insert_chunks(chunks: List[dict], is_gray: bool = False):
+    """插入 chunks 到 collection（LlamaIndex 自动生成 embedding）"""
+    if not chunks:
+        return
     nodes = [
         TextNode(
             text=chunk["content"],
             metadata={
-                "title": chunk["title"],
+                "title": chunk.get("title", ""),
                 "file_name": chunk["file_name"],
-                "chunk_idx": chunk["chunk_idx"]
+                "chunk_idx": chunk["chunk_idx"],
+                "is_gray": is_gray,
             },
-            id_=f"{chunk['file_name']}::{chunk['chunk_idx']}"
+            id_=f"{chunk['file_name']}::{chunk['chunk_idx']}",
         )
         for chunk in chunks
     ]
     index.insert_nodes(nodes)
 
 
-def search(query: str, top_k: int = 5) -> List[dict]:
-    """
-    搜索相关文档（初检 top 15 → DashScope Rerank → 返回 top_k）
-    Args:
-        query: 用户问题
-        top_k: 最终返回文档数
-    Returns:
-        文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
-    """
-    retriever = index.as_retriever(similarity_top_k=5)
-    nodes = retriever.retrieve(query)
+def delete_chunks_by_file(file_name: str, is_gray: Optional[bool] = None):
+    """删除指定文件的 chunks，可选按 is_gray 过滤"""
+    if is_gray is not None:
+        where = {"$and": [{"file_name": file_name}, {"is_gray": is_gray}]}
+    else:
+        where = {"file_name": file_name}
+    results = _collection.get(where=where)
+    if results["ids"]:
+        _collection.delete(ids=results["ids"])
 
-    # 调用 DashScope qwen3-vl-rerank 精排
-    doc_texts = [node.text for node in nodes]
+
+def update_is_gray(file_name: str, from_value: bool, to_value: bool):
+    """将指定文件 chunks 的 is_gray 从 from_value 更新为 to_value"""
+    results = _collection.get(
+        where={"$and": [{"file_name": file_name}, {"is_gray": from_value}]}
+    )
+    if not results["ids"]:
+        return
+    new_metadatas = []
+    for meta in results["metadatas"]:
+        new_meta = dict(meta)
+        new_meta["is_gray"] = to_value
+        new_metadatas.append(new_meta)
+    _collection.update(ids=results["ids"], metadatas=new_metadatas)
+
+
+def _get_gray_files() -> list:
+    """读取 Redis 中的灰度文件名集合"""
+    return list(redis_client.smembers("policies:gray:files"))
+
+
+def _build_where_clause(gray_traffic: bool) -> dict:
+    """
+    构建 ChromaDB where 过滤条件
+
+    gray_traffic=False (正常/线上流量):
+      {"is_gray": False}
+
+    gray_traffic=True (灰度流量):
+      灰度文件走新版本(is_gray=True)，非灰度文件走旧版本(is_gray=False)
+      {
+        "$or": [
+          {"$and": [{"is_gray": False}, {"file_name": {"$nin": gray_files}}]},
+          {"$and": [{"is_gray": True},  {"file_name": {"$in":  gray_files}}]}
+        ]
+      }
+    """
+    if not gray_traffic:
+        return {"is_gray": False}
+
+    gray_files = _get_gray_files()
+    if not gray_files:
+        return {"is_gray": False}
+
+    return {
+        "$or": [
+            {"$and": [{"is_gray": False}, {"file_name": {"$nin": gray_files}}]},
+            {"$and": [{"is_gray": True}, {"file_name": {"$in": gray_files}}]},
+        ]
+    }
+
+
+def search(query: str, top_k: int = 5, is_gray: Optional[bool] = None) -> List[dict]:
+    """
+    搜索相关文档（向量初检 → DashScope Rerank → 返回 top_k）
+
+    Args:
+        is_gray: None=通过 Nacos 自动分流, True=强制灰度, False=强制线上
+    """
+    if is_gray is None:
+        is_gray = gray_config.is_gray_traffic()
+
+    where = _build_where_clause(is_gray)
+    query_embedding = Settings.embed_model.get_text_embedding(query)
+
+    results = _collection.query(
+        query_embeddings=[query_embedding],
+        n_results=max(top_k * 2, 10),
+        where=where,
+    )
+
+    doc_texts = results["documents"][0] if results["documents"] else []
+    doc_metadatas = results["metadatas"][0] if results["metadatas"] else []
+
+    if not doc_texts:
+        return []
+
     response = TextReRank.call(
         model="qwen3-vl-rerank",
         query=query,
         documents=doc_texts,
-        top_n=top_k,
+        top_n=min(top_k, len(doc_texts)),
         api_key=app_settings.dashscope_api_key,
     )
 
     reranked = []
     for result in response.output.results:
         idx = result.index
-        if idx < len(nodes):
-            node = nodes[idx]
+        if idx < len(doc_texts):
             reranked.append({
-                "content": node.text,
-                "metadata": node.metadata,
+                "content": doc_texts[idx],
+                "metadata": doc_metadatas[idx],
             })
 
     return reranked[:top_k]
 
 
-def search_no_rerank(query: str, top_k: int = 5) -> List[dict]:
+def search_no_rerank(query: str, top_k: int = 5, is_gray: Optional[bool] = None) -> List[dict]:
     """
     搜索相关文档（纯向量检索，无精排）
+
     Args:
-        query: 用户问题
-        top_k: 返回文档数
-    Returns:
-        文档列表，格式: [{"content": "...", "metadata": {"file_name": "...", "chunk_idx": 0, ...}}, ...]
+        is_gray: None=通过 Nacos 自动分流, True=强制灰度, False=强制线上
     """
-    retriever = index.as_retriever(similarity_top_k=top_k)
-    nodes = retriever.retrieve(query)
+    if is_gray is None:
+        is_gray = gray_config.is_gray_traffic()
+
+    where = _build_where_clause(is_gray)
+    query_embedding = Settings.embed_model.get_text_embedding(query)
+
+    results = _collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k,
+        where=where,
+    )
+
+    doc_texts = results["documents"][0] if results["documents"] else []
+    doc_metadatas = results["metadatas"][0] if results["metadatas"] else []
 
     return [
-        {
-            "content": node.text,
-            "metadata": node.metadata,
-        }
-        for node in nodes
+        {"content": text, "metadata": meta}
+        for text, meta in zip(doc_texts, doc_metadatas)
     ]
 
 
-def get_all_chunks() -> List[dict]:
-    """获取全量chunk，返回 [{"id": ..., "content": ..., "metadata": {...}}, ...]"""
-    results = _chroma_collection.get()
+def get_all_chunks(is_gray: bool = False) -> List[dict]:
+    """获取全量 chunk"""
+    results = _collection.get(where={"is_gray": is_gray})
     return [
         {"id": id_, "content": content, "metadata": metadata}
         for id_, content, metadata in zip(
@@ -113,9 +197,11 @@ def get_all_chunks() -> List[dict]:
     ]
 
 
-def get_chunks_by_file(file_name: str) -> List[dict]:
-    """获取指定文档的全量chunk"""
-    results = _chroma_collection.get(where={"file_name": file_name})
+def get_chunks_by_file(file_name: str, is_gray: bool = False) -> List[dict]:
+    """获取指定文档的 chunk"""
+    results = _collection.get(
+        where={"$and": [{"file_name": file_name}, {"is_gray": is_gray}]}
+    )
     return [
         {"id": id_, "content": content, "metadata": metadata}
         for id_, content, metadata in zip(
@@ -125,7 +211,7 @@ def get_chunks_by_file(file_name: str) -> List[dict]:
 
 
 def clear():
-    """清空向量库"""
-    existing_ids = _chroma_collection.get()["ids"]
+    """清空 collection"""
+    existing_ids = _collection.get()["ids"]
     if existing_ids:
-        _chroma_collection.delete(ids=existing_ids)
+        _collection.delete(ids=existing_ids)

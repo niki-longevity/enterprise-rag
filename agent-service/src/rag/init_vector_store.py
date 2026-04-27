@@ -4,10 +4,14 @@
 """
 from src.rag.loader import load_policy_documents
 from src.rag.splitter import split_document_by_title, split_document_by_markdown_sections
-from src.rag.retriever import clear, add_documents
+from src.rag.retriever import clear, insert_chunks
 
 
 def init_vector_store():
+
+    # 清空向量库
+    clear()
+
     """初始化向量库"""
     print("正在加载政策文档...")
     docs = load_policy_documents()
@@ -23,7 +27,7 @@ def init_vector_store():
 
     print("正在存入向量库...")
     clear()
-    add_documents(all_chunks)
+    insert_chunks(all_chunks, is_gray=False)
     print("向量库初始化完成！")
 
 

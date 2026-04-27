@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     minio_host: str = "172.22.32.238:9000"
     minio_access_key: str = "root"
     minio_secret_key: str = "88888888"
+    minio_bucket_policies: str = "policies"
+
+    # Nacos 配置中心
+    nacos_host: str = "localhost:8848"
+    nacos_data_id: str = "policies-gray-config"
+    nacos_group: str = "DEFAULT_GROUP"
 
 
 settings = Settings()
