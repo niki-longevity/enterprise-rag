@@ -8,6 +8,7 @@ from typing import List, Optional, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
 from src.agent.nodes import get_llm
+from src.auth.deps import get_current_user
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
@@ -56,7 +57,6 @@ def compress_memory_async(memory_key: str):
 
 class ChatRequest(BaseModel):
     """前端发来的对话请求"""
-    userId: str = Field(..., description="用户ID")
     message: str = Field(..., description="用户消息内容")
     sessionId: Optional[str] = Field(None, description="会话ID，可选，用于会话续传")
 
@@ -156,14 +156,15 @@ async def chat_stream_impl(
 @router.post("/chat")
 async def chat(
     request: ChatRequest,
+    user_id: str = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """流式对话接口"""
-    return await chat_stream_impl(request.userId, request.message, request.sessionId, db)
+    return await chat_stream_impl(user_id, request.message, request.sessionId, db)
 
 
 @router.get("/history")
-def get_history(session_id: str):
+def get_history(session_id: str, user_id: str = Depends(get_current_user)):
     """获取指定会话的历史消息"""
     db = SessionLocal()
     mapper = ChatHistoryMapper(db)
@@ -173,7 +174,7 @@ def get_history(session_id: str):
 
 
 @router.get("/sessions")
-def get_sessions(user_id: str):
+def get_sessions(user_id: str = Depends(get_current_user)):
     """获取用户的会话ID列表，按最后消息时间倒序"""
     db = SessionLocal()
     mapper = ChatHistoryMapper(db)
