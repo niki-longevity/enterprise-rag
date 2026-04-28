@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Input, Button, List, Spin, message } from 'antd'
-import { SendOutlined, PlusOutlined } from '@ant-design/icons'
+import { SendOutlined, PlusOutlined, LogoutOutlined } from '@ant-design/icons'
 import { sendMessageStream, getHistory, getSessions } from './api'
+import Login from './Login'
 import './App.css'
 
 // 消息类型
@@ -12,10 +13,8 @@ interface ChatMsg {
   created_at: string
 }
 
-// 暂时写死用户ID，不做认证
-const USER_ID = 'user001'
-
 function App() {
+  const [token, setToken] = useState<string>(localStorage.getItem('token') || '')
   const [sessions, setSessions] = useState<string[]>([])        // 会话ID列表
   const [activeSession, setActiveSession] = useState<string>('') // 当前会话ID
   const [messages, setMessages] = useState<ChatMsg[]>([])        // 当前会话的消息
@@ -45,7 +44,7 @@ function App() {
   // 加载会话列表
   async function loadSessions() {
     try {
-      const data = await getSessions(USER_ID)
+      const data = await getSessions()
       setSessions(data)
       // 如果有会话，默认选中第一个
       if (data.length > 0 && !activeSession) {
@@ -99,7 +98,6 @@ function App() {
     try {
       let finalSessionId = activeSession
       await sendMessageStream(
-        USER_ID,
         text,
         activeSession || undefined,
         (chunk) => {
@@ -137,6 +135,10 @@ function App() {
     }
   }
 
+  if (!token) {
+    return <Login onLogin={(t: string) => setToken(t)} />
+  }
+
   return (
     <div className="app-container">
       {/* 左侧会话列表 */}
@@ -163,7 +165,23 @@ function App() {
       {/* 右侧聊天区 */}
       <div className="chat-area">
         {/* 标题栏 */}
-        <div className="chat-header">企业员工助手</div>
+        <div className="chat-header">
+            企业员工助手
+            <Button
+              size="small"
+              icon={<LogoutOutlined />}
+              style={{ float: 'right', marginTop: 4 }}
+              onClick={() => {
+                localStorage.removeItem('token')
+                setToken('')
+                setSessions([])
+                setActiveSession('')
+                setMessages([])
+              }}
+            >
+              退出
+            </Button>
+          </div>
 
         {/* 消息区域 */}
         <div className="chat-messages">

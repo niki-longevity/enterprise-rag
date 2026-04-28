@@ -1,11 +1,19 @@
 // 后端API封装
 // 后端地址通过vite proxy代理，前端直接请求 /api/xxx
+// JWT token 从 localStorage 读取，自动附带 Authorization header
 
 const API_BASE = '/api'
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token') || ''
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  }
+}
+
 // 发送聊天消息（流式）
 export async function sendMessageStream(
-  userId: string,
   message: string,
   sessionId: string | undefined,
   onChunk: (chunk: string) => void,
@@ -14,8 +22,8 @@ export async function sendMessageStream(
 ) {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, message, sessionId: sessionId || null }),
+    headers: authHeaders(),
+    body: JSON.stringify({ message, sessionId: sessionId || null }),
   })
 
   if (!res.ok) {
@@ -60,14 +68,18 @@ export async function sendMessageStream(
 
 // 获取会话历史消息
 export async function getHistory(sessionId: string) {
-  const res = await fetch(`${API_BASE}/history?session_id=${encodeURIComponent(sessionId)}`)
+  const res = await fetch(`${API_BASE}/history?session_id=${encodeURIComponent(sessionId)}`, {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+  })
   if (!res.ok) throw new Error(`请求失败: ${res.status}`)
   return res.json()
 }
 
 // 获取用户的会话列表
-export async function getSessions(userId: string) {
-  const res = await fetch(`${API_BASE}/sessions?user_id=${encodeURIComponent(userId)}`)
+export async function getSessions() {
+  const res = await fetch(`${API_BASE}/sessions`, {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+  })
   if (!res.ok) throw new Error(`请求失败: ${res.status}`)
   return res.json()
 }
