@@ -16,7 +16,8 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 .tabs button { padding: 6px 16px; border: none; background: transparent; border-radius: 4px; cursor: pointer; font-size: 13px; }
 .tabs button.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-.toolbar input, .toolbar select { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+.toolbar input, .toolbar select, .toolbar button { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+.toolbar button { cursor: pointer; background: #1677ff; color: #fff; border-color: #1677ff; }
 .cards { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .card { flex: 1; min-width: 150px; background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .card .label { font-size: 12px; color: #888; margin-bottom: 4px; }
@@ -26,12 +27,21 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 .chart-box { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .chart-box h3 { font-size: 14px; margin-bottom: 12px; color: #555; }
 .chart-box canvas { max-height: 280px; }
-.sidebar { width: 280px; display: flex; flex-direction: column; gap: 12px; }
-.sidebar .chart-box { flex-shrink: 0; }
-.sidebar .chart-box canvas { max-height: 200px; }
+.sidebar { width: 300px; display: flex; flex-direction: column; gap: 12px; }
 .info-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 .info-item .k { color: #888; }
 .info-item .v { font-weight: 500; }
+.quota-form { display: flex; flex-direction: column; gap: 8px; }
+.quota-form label { font-size: 12px; color: #888; }
+.quota-form input { width: 100%; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+.quota-row { display: flex; gap: 8px; }
+.quota-row .btn { flex: 1; padding: 6px 0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-primary { background: #1677ff; color: #fff; }
+.btn-danger { background: #ff4d4f; color: #fff; }
+.btn-default { background: #f0f0f0; color: #333; }
+.msg { font-size: 12px; min-height: 18px; }
+.msg.ok { color: #52c41a; }
+.msg.err { color: #ff4d4f; }
 </style>
 </head>
 <body>
@@ -48,14 +58,14 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 <input type="date" v-model="fromDate">
 <span>—</span>
 <input type="date" v-model="toDate">
-<button @click="fetchAll" style="padding:6px 16px;cursor:pointer;">查询</button>
+<button @click="fetchAll">查询</button>
 <select v-model="refresh" @change="setRefresh">
 <option value="0">关闭自动刷新</option>
 <option value="15">15s</option>
 <option value="30">30s</option>
 <option value="60">60s</option>
 </select>
-<span style="color:#888;font-size:12px;">{{ countdown > 0 ? countdown+'s' : '' }}</span>
+<span style="color:#888;font-size:12px;">{{ countdown ? countdown+'s' : '' }}</span>
 </div>
 <div class="toolbar" v-else>
 <span style="color:#888;">最近 24 小时</span>
@@ -81,7 +91,14 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 <div class="chart-box" v-if="mode==='hour'"><h3>每小时调用次数</h3><canvas id="hcallChart"></canvas></div>
 </div>
 <div class="sidebar">
-<div class="chart-box"><h3>模型成本占比</h3><canvas id="pieChart"></canvas></div>
+
+<!-- 模型成本占比 -->
+<div class="chart-box">
+<h3>模型成本占比</h3>
+<div style="position:relative;height:200px;"><canvas id="pieChart"></canvas></div>
+</div>
+
+<!-- 时段汇总 -->
 <div class="chart-box">
 <h3>时段汇总统计</h3>
 <div class="info-item"><div class="k">每用户平均调用</div><div class="v">{{ agg.per_user.avg_calls }} 次</div></div>
@@ -92,6 +109,38 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 <div class="info-item"><div class="k">每会话平均输入</div><div class="v">{{ fmtK(agg.per_session.avg_input_tokens) }}</div></div>
 <div class="info-item"><div class="k">每会话平均成本</div><div class="v">¥{{ agg.per_session.avg_cost }}</div></div>
 </div>
+
+<!-- 配额管理 -->
+<div class="chart-box">
+<h3>配额管理</h3>
+<div class="quota-form">
+<label>用户ID</label>
+<div class="quota-row">
+<input v-model="quotaUid" placeholder="输入用户ID" style="flex:1">
+<button class="btn btn-default" @click="loadQuota" style="flex:0 0 60px">查询</button>
+</div>
+<div v-if="quotaData" style="margin-top: 4px;">
+<div class="info-item"><div class="k">用户名</div><div class="v">{{ quotaData.username }}</div></div>
+<div class="info-item"><div class="k">角色</div><div class="v">{{ quotaData.role }}</div></div>
+<div class="info-item" v-if="quotaData.override"><div class="k">当前覆盖</div><div class="v">请求{{ quotaData.override.daily_requests || '-' }} / Token{{ quotaData.override.daily_tokens || '-' }} / RPM{{ quotaData.override.rpm_requests || '-' }}</div></div>
+<div style="border-top:1px solid #eee;margin:8px 0;padding-top:8px;">
+<label>日请求上限</label>
+<input v-model="quotaForm.daily_requests" placeholder="留空=默认" type="number" min="0">
+<label>日Token上限</label>
+<input v-model="quotaForm.daily_tokens" placeholder="留空=默认" type="number" min="0">
+<label>RPM上限</label>
+<input v-model="quotaForm.rpm_requests" placeholder="留空=默认" type="number" min="0">
+</div>
+<div class="quota-row" style="margin-top:8px">
+<button class="btn btn-primary" @click="saveQuota">保存覆盖</button>
+<button class="btn btn-danger" @click="resetQuota">恢复默认</button>
+</div>
+<div class="msg" :class="quotaMsg.type">{{ quotaMsg.text }}</div>
+</div>
+<div v-else-if="quotaLoaded" class="msg err">用户不存在</div>
+</div>
+</div>
+
 </div>
 </div>
 </div>
@@ -105,88 +154,123 @@ return {
 mode: 'day',
 fromDate: new Date(now-7*864e5).toISOString().slice(0,10),
 toDate: now.toISOString().slice(0,10),
-refresh: 30,
-countdown: 0,
-timer: null,
+refresh: 30, countdown: 0, timer: null,
 overview: {active_users:0,active_sessions:0,total_calls:0,total_cost:0},
 days: [], hours: [],
 agg: {per_user:{avg_calls:0,avg_input_tokens:0,avg_output_tokens:0,avg_cost:0},per_session:{avg_calls:0,avg_input_tokens:0,avg_cost:0}},
-charts: {}
+charts: {},
+// 配额管理
+quotaUid: '1',
+quotaData: null,
+quotaLoaded: false,
+quotaForm: {daily_requests:null,daily_tokens:null,rpm_requests:null},
+quotaMsg: {type:'',text:''},
 }
 },
 methods: {
-fmtK(v) { return v >= 1000 ? (v/1000).toFixed(1)+'K' : v },
+fmtK(v) { return v>=1000 ? (v/1000).toFixed(1)+'K' : v },
 async fetchAll() {
-const p = this.mode === 'day' ? `from=${this.fromDate}&to=${this.toDate}` : ''
-const base = this.mode === 'day' ? `/admin/stats/trend?${p}` : '/admin/stats/trend-hourly'
+const p = this.mode==='day' ? `from=${this.fromDate}&to=${this.toDate}` : ''
+const base = this.mode==='day' ? `/admin/stats/trend?${p}` : '/admin/stats/trend-hourly'
 const [ov, trend, agg] = await Promise.all([
 fetch(`/admin/stats/overview?${p}`).then(r=>r.json()),
 fetch(base).then(r=>r.json()),
 fetch(`/admin/stats/aggregation?${p}`).then(r=>r.json()),
 ])
-this.overview = ov
-this.agg = agg
-if (this.mode === 'day') { this.days = trend.days; this.renderDay() }
+this.overview = ov; this.agg = agg
+if (this.mode==='day') { this.days = trend.days; this.renderDay() }
 else { this.hours = trend.hours; this.renderHour() }
 },
-switchMode(m) {
-this.mode = m
-this.$nextTick(() => this.fetchAll())
-},
+switchMode(m) { this.mode = m; this.$nextTick(() => this.fetchAll()) },
 setRefresh() {
 clearInterval(this.timer)
 if (this.refresh > 0) {
 this.countdown = this.refresh
-this.timer = setInterval(() => {
-this.countdown--
-if (this.countdown <= 0) { this.countdown = this.refresh; this.fetchAll() }
-}, 1000)
+this.timer = setInterval(() => { this.countdown--; if (this.countdown<=0){this.countdown=this.refresh;this.fetchAll()} }, 1000)
 } else { this.countdown = 0 }
 },
 renderDay() {
 const labels = this.days.map(d=>d.date)
 const types = ['chat','embedding','rerank']
 const colors = {chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
-const datasets = (field) => types.map(t=>({label:t,data:this.days.map(d=>(d.models[t]||{})[field]||0),borderColor:colors[t],backgroundColor:colors[t]+'20',fill:false,tension:0.3}))
-this._render('costChart', labels, datasets('cost'), 'line')
+const ds = (f) => types.map(t=>({label:t,data:this.days.map(d=>(d.models[t]||{})[f]||0),borderColor:colors[t],backgroundColor:colors[t]+'20',fill:false,tension:0.3}))
+this._render('costChart', labels, ds('cost'), 'line')
 this._render('tokenChart', labels, [
-{label:'输入Token',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
-{label:'输出Token',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
+{label:'输入',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
+{label:'输出',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
 ], 'line')
-this._render('callChart', labels, datasets('calls'), 'line')
+this._render('callChart', labels, ds('calls'), 'line')
 this.renderPie()
 },
 renderHour() {
 const labels = this.hours.map(h=>h.hour.slice(11))
 const types = ['chat','embedding','rerank']
 this._render('htokenChart', labels, [
-{label:'输入Token',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
-{label:'输出Token',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
+{label:'输入',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
+{label:'输出',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
 ], 'line')
-const colors = {chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
+const colors={chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
 this._render('hcallChart', labels, types.map(t=>({label:t,data:this.hours.map(h=>(h.models[t]||{}).calls||0),borderColor:colors[t],backgroundColor:colors[t]+'20',fill:false,tension:0.3})), 'line')
 this.renderPie()
 },
 renderPie() {
 let totals = {}
-const items = this.mode==='day'?this.days:this.hours
+const items = this.mode==='day' ? this.days : this.hours
 items.forEach(it => {
-Object.entries(it.models||{}).forEach(([t,m])=>{totals[t]=(totals[t]||0)+m.cost})
+Object.entries(it.models||{}).forEach(([t,m]) => { totals[t] = (totals[t]||0) + (m.cost||0) })
 })
-const types=['chat','embedding','rerank']
-const bg={chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
-this._render('pieChart', types, [{data:types.map(t=>totals[t]||0),backgroundColor:types.map(t=>bg[t])}], 'doughnut')
+const types = ['chat','embedding','rerank']
+const bg = {chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
+const data = types.map(t => totals[t]||0)
+const bgColors = types.map(t => bg[t])
+this._render('pieChart', types, [{data, backgroundColor: bgColors}], 'doughnut')
 },
 _render(id, labels, datasets, type) {
 if (this.charts[id]) this.charts[id].destroy()
 const ctx = document.getElementById(id)
 if (!ctx) return
 this.charts[id] = new Chart(ctx, {
-type,
-data: {labels, datasets},
-options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,fontSize:11}}},
-scales: type!=='doughnut'?{y:{beginAtZero:true,ticks:{fontSize:11}},x:{ticks:{fontSize:10,maxRotation:45}}}:{}}
+type, data: {labels, datasets},
+options: {
+responsive: true, maintainAspectRatio: false,
+plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+scales: type!=='doughnut' ? { y: { beginAtZero: true }, x: { ticks: { maxRotation: 45 } } } : {}
+}
 })
+},
+// 配额管理
+async loadQuota() {
+const uid = parseInt(this.quotaUid)
+if (!uid) return
+try {
+const r = await fetch(`/admin/users/${uid}/quota`)
+if (!r.ok) { this.quotaData = null; this.quotaLoaded = true; return }
+this.quotaData = await r.json()
+this.quotaLoaded = true
+this.quotaMsg = {type:'',text:''}
+const ov = this.quotaData.override || {}
+this.quotaForm = { daily_requests: ov.daily_requests ?? null, daily_tokens: ov.daily_tokens ?? null, rpm_requests: ov.rpm_requests ?? null }
+} catch { this.quotaMsg = {type:'err',text:'加载失败'} }
+},
+async saveQuota() {
+const uid = parseInt(this.quotaUid)
+const body = {}
+if (this.quotaForm.daily_requests !== null && this.quotaForm.daily_requests !== '') body.daily_requests = parseInt(this.quotaForm.daily_requests)
+if (this.quotaForm.daily_tokens !== null && this.quotaForm.daily_tokens !== '') body.daily_tokens = parseInt(this.quotaForm.daily_tokens)
+if (this.quotaForm.rpm_requests !== null && this.quotaForm.rpm_requests !== '') body.rpm_requests = parseInt(this.quotaForm.rpm_requests)
+try {
+const r = await fetch(`/admin/users/${uid}/quota`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+if (r.ok) { this.quotaMsg = {type:'ok',text:'保存成功'}; this.loadQuota() }
+else { const e = await r.json(); this.quotaMsg = {type:'err',text: e.detail || '保存失败'} }
+} catch { this.quotaMsg = {type:'err',text:'网络错误'} }
+},
+async resetQuota() {
+const uid = parseInt(this.quotaUid)
+try {
+const r = await fetch(`/admin/users/${uid}/quota`, { method: 'DELETE' })
+if (r.ok) { this.quotaMsg = {type:'ok',text:'已恢复默认'}; this.quotaForm = {daily_requests:null,daily_tokens:null,rpm_requests:null}; this.loadQuota() }
+else { const e = await r.json(); this.quotaMsg = {type:'err',text: e.detail || '重置失败'} }
+} catch { this.quotaMsg = {type:'err',text:'网络错误'} }
 }
 },
 mounted() { this.fetchAll(); this.setRefresh() },
