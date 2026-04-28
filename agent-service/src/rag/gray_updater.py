@@ -3,13 +3,13 @@ from pathlib import Path
 
 from src.config.client import redis_client
 from src.config.gray_config import gray_config
-from src.rag.splitter import split_document_by_markdown_sections
-from src.rag.retriever import (
+from src.storage.rag.splitter import split_document_by_markdown_sections
+from src.storage.rag.retriever import (
     insert_chunks as chroma_insert,
     delete_chunks_by_file as chroma_delete,
 )
-from src.storage.minio_store import download_file
-from src.es.indexer import (
+from src.storage.minio.minio_store import download_file
+from src.storage.es.indexer import (
     insert_chunks as es_insert,
     delete_by_file as es_delete,
 )
@@ -30,9 +30,9 @@ def _store_etag(file_name: str, etag: str):
 
 def init_policies():
     """首次全量初始化：加载本地 .md 文件 → 切分 → 写入 ChromaDB + ES (is_gray=False)"""
-    from src.rag.loader import load_policy_documents
-    from src.rag.retriever import clear as chroma_clear
-    from src.es.indexer import create_index
+    from src.storage.rag.loader import load_policy_documents
+    from src.storage.rag.retriever import clear as chroma_clear
+    from src.storage.es.indexer import create_index
 
     print("正在初始化 policies...")
     docs = load_policy_documents()

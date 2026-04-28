@@ -2,9 +2,9 @@
 初始化向量库
 加载政策文档、分块并存入ChromaDB
 """
-from src.rag.loader import load_policy_documents
-from src.rag.splitter import split_document_by_title, split_document_by_markdown_sections
-from src.rag.retriever import clear, insert_chunks
+from src.storage.rag.loader import load_policy_documents
+from src.storage.rag.splitter import split_document_by_markdown_sections
+from src.storage.rag.retriever import clear, insert_chunks
 
 
 def init_vector_store():

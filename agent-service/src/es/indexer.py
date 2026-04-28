@@ -5,7 +5,7 @@ Elasticsearch 索引管理：创建索引、文档入库、删除索引
 from typing import List, Optional
 from elasticsearch import Elasticsearch
 from src.config.settings import settings as app_settings
-from src.rag.retriever import get_all_chunks
+from src.storage.rag.retriever import get_all_chunks
 
 es = Elasticsearch(
     [f"http://{app_settings.es_host}:{app_settings.es_port}"],

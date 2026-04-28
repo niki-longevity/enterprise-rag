@@ -8,7 +8,7 @@ from typing import List, Optional, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
 from src.agent.nodes import get_llm
-from src.auth.deps import get_current_user
+from src.auth.deps import get_current_user, _tracking_ctx
 from src.auth.quota import check_quota
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
@@ -21,9 +21,13 @@ import threading
 router = APIRouter()
 
 
-def compress_memory_async(memory_key: str):
+def compress_memory_async(memory_key: str, user_id: str, session_id: str):
     """异步压缩记忆：在后台线程中运行"""
+    import contextvars
+    ctx_copy = contextvars.copy_context()
+
     def task():
+        _tracking_ctx.set({"user_id": user_id, "session_id": session_id, "node_type": "compress"})
         memory_items = redis_client.lrange(memory_key, 0, -1)
         if len(memory_items) <= 20:
             return
@@ -52,7 +56,7 @@ def compress_memory_async(memory_key: str):
         new_items = [json.dumps({"role": "SUMMARY", "content": summary}, ensure_ascii=False)] + to_keep
         redis_client.eval(lua_script, 1, memory_key, *new_items)
 
-    thread = threading.Thread(target=task, daemon=True)
+    thread = threading.Thread(target=ctx_copy.run, args=(task,), daemon=True)
     thread.start()
 
 
@@ -115,6 +119,7 @@ async def chat_stream_impl(
     async def generate() -> AsyncGenerator[str, None]:
         full_reply = ""
         try:
+            _tracking_ctx.set({"user_id": userId, "session_id": session_id, "node_type": "agent"})
             # 真正的流式：使用 astream_events 实时获取 LLM 输出
             async for event in agent_graph.astream_events(initial_state, version="v2", config={"recursion_limit": 8}):
                 if event["event"] == "on_chat_model_stream":
@@ -138,7 +143,7 @@ async def chat_stream_impl(
 
             # 触发压缩
             if redis_client.llen(memory_key) > 20:
-                compress_memory_async(memory_key)
+                compress_memory_async(memory_key, userId, session_id)
 
             # 发送结束信号
             yield f"data: {json.dumps({'type': 'end', 'session_id': session_id}, ensure_ascii=False)}\n\n"

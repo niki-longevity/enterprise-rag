@@ -5,6 +5,7 @@ from langgraph.prebuilt import ToolNode
 
 from src.config.settings import settings
 from src.agent.tools import tools
+from src.tracking.callback import tracking_callback
 
 
 def get_llm():
@@ -13,7 +14,8 @@ def get_llm():
         model=settings.tencent_model,
         api_key=settings.tencent_api_key,
         base_url=settings.tencent_base_url,
-        temperature=0.7
+        temperature=0.7,
+        callbacks=[tracking_callback],
     )
 
 

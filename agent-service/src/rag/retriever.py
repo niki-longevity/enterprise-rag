@@ -13,11 +13,29 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from src.config.settings import settings as app_settings
 from src.config.client import redis_client
 from src.config.gray_config import gray_config
+from src.tracking.recorder import track_embedding
+from src.auth.deps import _tracking_ctx
 
 # LlamaIndex 全局 embedding 配置
 Settings.embed_model = DashScopeEmbedding(
     model_name=app_settings.dashscope_embedding_model
 )
+
+
+def _track_rerank_inline(response):
+    """记录 rerank 调用的 token 消耗"""
+    ctx = _tracking_ctx.get()
+    if not ctx or not ctx.get("user_id"):
+        return
+    usage = response.usage
+    track_embedding(
+        user_id=ctx["user_id"],
+        session_id=ctx.get("session_id") or "",
+        model_name="qwen3-vl-rerank",
+        model_type="rerank",
+        node_type="query",
+        input_tokens=usage.input_tokens or 0,
+    )
 
 # ChromaDB 持久化客户端
 _chroma_client = chromadb.PersistentClient(path=app_settings.chroma_db_path)
@@ -145,6 +163,7 @@ def search(query: str, top_k: int = 5, is_gray: Optional[bool] = None) -> List[d
         top_n=min(top_k, len(doc_texts)),
         api_key=app_settings.dashscope_api_key,
     )
+    _track_rerank_inline(response)
 
     reranked = []
     for result in response.output.results:

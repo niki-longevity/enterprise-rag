@@ -6,6 +6,8 @@ from src.es.searcher import bm25_search
 from src.rag.retriever import search, search_no_rerank
 from src.config.settings import settings
 from src.skills.warm_up import get_skill_content
+from src.tracking.recorder import track_embedding
+from src.auth.deps import _tracking_ctx
 
 
 @tool
@@ -68,6 +70,22 @@ tools = [simple_retrieve_policy, es_retrieve_policy, complex_retrieve_policy, vi
 
 
 
+def _track_rerank(response):
+    """记录 rerank 调用的 token 消耗"""
+    ctx = _tracking_ctx.get()
+    if not ctx or not ctx.get("user_id"):
+        return
+    usage = response.usage
+    track_embedding(
+        user_id=ctx["user_id"],
+        session_id=ctx.get("session_id") or "",
+        model_name="qwen3-vl-rerank",
+        model_type="rerank",
+        node_type="query",
+        input_tokens=usage.input_tokens or 0,
+    )
+
+
 def multi_retrieve_v2(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=2) -> list:
     """
     每个query独立检索+用自己的query精排，各取top2，合并去重
@@ -83,11 +101,12 @@ def multi_retrieve_v2(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=2
             doc_texts = [doc["content"] for doc in vec_results]
             response = TextReRank.call(
                 model="qwen3-vl-rerank",
-                query=query,  # 用自己的query
+                query=query,
                 documents=doc_texts,
                 top_n=2,
                 api_key=settings.dashscope_api_key,
             )
+            _track_rerank(response)
             for result in response.output.results:
                 idx = result.index
                 if idx < len(vec_results):
@@ -103,11 +122,12 @@ def multi_retrieve_v2(vec_queries, bm25_query, retrieve_top_k=10, rerank_top_k=2
         doc_texts = [doc["content"] for doc in es_results]
         response = TextReRank.call(
             model="qwen3-vl-rerank",
-            query=vec_queries[0],  # 用意图提纯后的 query
+            query=vec_queries[0],
             documents=doc_texts,
             top_n=2,
             api_key=settings.dashscope_api_key,
         )
+        _track_rerank(response)
         for result in response.output.results:
             idx = result.index
             if idx < len(es_results):
