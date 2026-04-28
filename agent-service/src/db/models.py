@@ -1,5 +1,5 @@
 # 数据库模型
-from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -38,3 +38,22 @@ class UserQuotaOverride(Base):
     daily_tokens = Column(Integer, nullable=True)
     rpm_requests = Column(Integer, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class LLMCallLog(Base):
+    """LLM 调用日志"""
+    __tablename__ = "llm_call_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(64), nullable=False)
+    session_id = Column(String(128), nullable=False)
+    model_name = Column(String(64), nullable=False)
+    model_type = Column(String(20), nullable=False)
+    node_type = Column(String(20), nullable=False)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    latency_ms = Column(Integer, default=0)
+    cost = Column(Float, default=0.0)
+    status = Column(String(10), default="success")
+    error_msg = Column(String(256), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
