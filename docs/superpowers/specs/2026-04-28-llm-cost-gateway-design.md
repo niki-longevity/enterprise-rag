@@ -1,8 +1,125 @@
-# LLM 成本追踪网关 — 设计文档
+# LLM 成本追踪网关 + JWT 用户认证 — 设计文档
 
 ## 概述
 
-为 Agent 服务增加一个轻量级网关层，通过 LangChain callback 拦截所有 LLM 调用，记录 token 消耗、延迟、成本等指标到 MySQL，并提供独立的可视化 Dashboard。
+为 Agent 服务增加两个基础模块：
+1. **JWT 用户认证**：注册/登录，JWT token 鉴权，替代当前明文传 userId
+2. **LLM 成本追踪网关**：LangChain callback 拦截所有 LLM 调用，记录 token/延迟/成本到 MySQL，提供可视化 Dashboard
+
+实现顺序：JWT 先 → 成本追踪后。成本追踪的 contextvar 由 JWT 的 `get_current_user` dep 自动填充。
+
+---
+
+# 模块一：JWT 用户认证
+
+## 架构
+
+```
+前端 Login/Register → POST /api/auth/login  → 返回 JWT token
+                     → POST /api/auth/register
+
+所有后续请求 → Authorization: Bearer <token>
+              → get_current_user (Depends) → 解析 user_id
+              → 设置 tracking contextvar（为后续成本追踪准备）
+              → 传入 chat_stream_impl
+```
+
+## 数据模型
+
+### `users` 表
+
+```sql
+CREATE TABLE users (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    username      VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(200) NOT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## API
+
+### `POST /api/auth/register`
+
+```
+Request:  { username: str, password: str }
+Response: { token: str }
+```
+
+- 用户名 3-20 字符，密码 6-50 字符
+- bcrypt 加密存储
+- 返回 7 天有效期的 JWT
+
+### `POST /api/auth/login`
+
+```
+Request:  { username: str, password: str }
+Response: { token: str }
+```
+
+- 校验用户名密码
+- 返回 JWT，payload: `{user_id, username, exp}`
+
+## JWT Depends
+
+新建 `src/auth/deps.py`：
+
+```python
+from fastapi import Header, HTTPException
+import contextvars
+
+_tracking_ctx: ContextVar = ContextVar('tracking', default=None)
+
+async def get_current_user(authorization: str = Header(...)) -> str:
+    """从 Authorization header 解析 JWT，返回 user_id，并设 contextvar"""
+    try:
+        token = authorization.split(" ", 1)[1]  # Bearer <token>
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        user_id = str(payload["user_id"])
+        _tracking_ctx.set({"user_id": user_id, "session_id": None, "node_type": None})
+        return user_id
+    except Exception:
+        raise HTTPException(401, "Invalid token")
+```
+
+## chat.py 改动
+
+- `ChatRequest` 删除 `userId` 字段
+- `/api/chat`、`/api/history`、`/api/sessions` 加 `user_id: str = Depends(get_current_user)`
+- `chat_stream_impl` 函数签名不变，`userId` 参数来源从 request body 变成 Depends
+
+## 前端改动
+
+- 新增 `Login.tsx`：登录/注册表单（Tabs 切换），Ant Design
+- `api.ts`：所有请求加 `Authorization: Bearer <token>`，去掉 `userId` 参数
+- `App.tsx`：启动时检查 localStorage token，无 token → 显示 Login，有 token → 显示聊天界面
+- 删除 `const USER_ID = 'user001'`
+
+## 新增依赖
+
+```
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+```
+
+## 文件清单（模块一）
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `src/auth/__init__.py` | 新建 | 模块入口 |
+| `src/auth/deps.py` | 新建 | get_current_user + contextvar |
+| `src/api/auth.py` | 新建 | register/login 路由 |
+| `src/db/models.py` | 修改 | +User 模型 |
+| `src/api/chat.py` | 修改 | ChatRequest 去 userId，路由加 Depends |
+| `src/main.py` | 修改 | +1 行注册 auth router |
+| `src/config/settings.py` | 修改 | +jwt_secret 字段 |
+| `frontend/src/Login.tsx` | 新建 | 登录/注册组件 |
+| `frontend/src/App.tsx` | 修改 | 加登录态判断 |
+| `frontend/src/api.ts` | 修改 | 去 userId，加 Authorization header |
+
+---
+
+# 模块二：LLM 成本追踪网关
 
 ## 架构
 
@@ -11,6 +128,7 @@ Agent Graph (nodes.py)
     │  ChatOpenAI(callbacks=[LLMTrackingCallback])
     ▼
 LLMTrackingCallback (BaseCallbackHandler)
+    │  从 contextvar 读取 user_id/session_id/node_type
     │  提取 token / 延迟 / 成本
     ▼
 MySQL: llm_call_logs ←── FastAPI /admin routes ──→ Dashboard (Vue3 + Chart.js)
@@ -23,7 +141,7 @@ DashScope SDK (embedding/rerank)                      │
 
 ### Chat 模型（ChatOpenAI）
 
-- 新增 `src/tracking/callback.py`，实现 `BaseCallbackHandler`
+- 新建 `src/tracking/callback.py`，实现 `BaseCallbackHandler`
 - `on_llm_start`: 记开始时间、model name
 - `on_llm_end`: 从 `response.llm_output` 提取 token_usage，计算延迟和成本，写入 DB
 - `on_llm_error`: 记录失败调用（status=error）
@@ -31,18 +149,13 @@ DashScope SDK (embedding/rerank)                      │
 
 ### 上下文传递
 
-用 `contextvars.ContextVar`（异步安全，支持 LangGraph 的 async 节点）：
+复用 `src/auth/deps.py` 中的 `_tracking_ctx`（模块一共用同一个 contextvar）。
 
-```python
-_tracking_ctx: ContextVar = ContextVar('tracking', default=None)
+`node_type` 枚举：`agent`（ReAct 推理）、`compress`（记忆压缩）、`eval`（评估）。
 
-def set_tracking_context(user_id: str, session_id: str, node_type: str):
-    _tracking_ctx.set({"user_id": user_id, "session_id": session_id, "node_type": node_type})
-```
-
-- chat.py: 在 `agent_graph.astream_events()` 前 set
-- chat.py `compress_memory_async`: 在 `llm.invoke()` 前 set（后台线程需手动传）
-- 其他调用点同样处理
+- `api/chat.py` (`chat_stream_impl`): 调用 graph 前 set `session_id` + `node_type`
+- `api/chat.py` (`compress_memory_async`): 后台线程中 set `node_type="compress"`
+- `eval.py`: 测试脚本，不使用成本追踪（不设 contextvar 时 callback 跳过记录）
 
 ### Embedding/Rerank 模型（DashScope SDK）
 
@@ -52,7 +165,7 @@ def set_tracking_context(user_id: str, session_id: str, node_type: str):
 - `init_vector_store.py` 中 `TextEmbedding.call()` 1 处
 - `gray_updater.py` 中 embedding 调用 1 处
 
-每处加 1 行：`track_embedding(model, usage, user_id, session_id, node_type)`
+每处加 1 行：`track_embedding(model, usage, node_type)`
 
 ## 数据模型
 
@@ -79,6 +192,17 @@ CREATE TABLE llm_call_logs (
     INDEX idx_model_type (model_type, created_at)
 );
 ```
+
+### Token 消耗的 node_type 映射
+
+每个 `llm_call_logs` 记录对应一次 LLM 调用，`node_type` 区分调用来源：
+
+| node_type | 调用来源 | 说明 |
+|-----------|---------|------|
+| `agent` | `agent_node` (nodes.py) | ReAct 推理决策 |
+| `compress` | `compress_memory_async` (chat.py) | 记忆压缩总结 |
+| `index` | `init_vector_store.py` / `gray_updater.py` | 文档 Embedding/索引 |
+| `query` | `tools.py` (rerank) | 查询时的 Rerank 调用 |
 
 ### 模型定价配置
 
@@ -189,25 +313,33 @@ CREATE TABLE llm_call_logs (
 - 自动刷新：下拉 15s / 30s / 60s / 关闭，默认 30s
 - 时间范围变更 → 所有图表联动刷新
 
-## 文件清单
+## 文件清单（模块二）
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
 | `src/tracking/__init__.py` | 新建 | 模块入口 |
-| `src/tracking/callback.py` | 新建 | BaseCallbackHandler + contextvar |
+| `src/tracking/callback.py` | 新建 | BaseCallbackHandler（引用 auth/deps.py 的 contextvar） |
 | `src/tracking/recorder.py` | 新建 | DB 写入 + manual track 函数 |
 | `src/tracking/pricing.json` | 新建 | 模型定价配置 |
 | `src/api/admin.py` | 新建 | Admin API 路由 |
 | `src/static/admin.html` | 新建 | Dashboard 前端 |
 | `src/agent/nodes.py` | 修改 | `get_llm()` 挂载 callback |
-| `src/api/chat.py` | 修改 | 每次调用前 set context |
-| `src/agent/tools.py` | 修改 | embedding/rerank 调用点加记录 |
-| `src/rag/init_vector_store.py` | 修改 | embedding 调用点加记录 |
-| `src/rag/gray_updater.py` | 修改 | embedding 调用点加记录 |
+| `src/api/chat.py` | 修改 | 每次调用前 set contextvar 的 session_id/node_type |
+| `src/agent/tools.py` | 修改 | rerank 调用点加手动记录 |
+| `src/rag/init_vector_store.py` | 修改 | embedding 调用点加手动记录 |
+| `src/rag/gray_updater.py` | 修改 | embedding 调用点加手动记录 |
 | `src/main.py` | 修改 | 挂载 admin 路由 + static files |
 
 ## 验证
 
+**模块一：**
+1. `POST /api/auth/register` 注册成功，返回 token
+2. `POST /api/auth/login` 登录成功
+3. 无 token 请求 `/api/chat` 返回 401
+4. 带 token 请求正常流式返回
+5. 前端登录/注册 UI 正常，token 持久化到 localStorage
+
+**模块二：**
 1. 启动服务后访问 `/admin/` 能看到 Dashboard 页面
 2. 发一条对话 → Dashboard 上出现新的调用记录
 3. 日维度折线图数据随日期变化
