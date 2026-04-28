@@ -57,10 +57,14 @@
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install langfuse)",
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install 'langfuse>=2.0.0,<3.0.0')",
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m pip install llama-index-llms-langchain)",
-      "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" eval.py)"
+      "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" eval.py)",
+      "Bash(npx tsc *)",
+      "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload)",
+      "Bash(npm run *)",
+      "Bash(start *)"
     ]
   },
   "enabledPlugins": {
-    "andrej-karpathy-skills@karpathy-skills": true
+    "andrej-karpathy-skills@karpathy-skills": false
   }
 }
