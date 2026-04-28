@@ -24,4 +24,17 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), nullable=False, unique=True)
     password_hash = Column(String(200), nullable=False)
+    role = Column(String(20), nullable=False, default="user")
     created_at = Column(DateTime, server_default=func.now())
+
+
+class UserQuotaOverride(Base):
+    """用户配额覆盖"""
+    __tablename__ = "user_quota_overrides"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, unique=True)
+    daily_requests = Column(Integer, nullable=True)
+    daily_tokens = Column(Integer, nullable=True)
+    rpm_requests = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
