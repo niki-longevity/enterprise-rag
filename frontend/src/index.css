@@ -1,9 +1,61 @@
-/* 全局重置 */
-body {
-  margin: 0;
-  padding: 0;
+/* 全局 — 企业员工助手 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #f8f6f4;
+  --surface: #ffffff;
+  --surface-hover: #f3f1ef;
+  --sidebar-bg: #efedeb;
+  --border: #e6e3e0;
+  --border-light: #f0eeec;
+  --text: #2c2a28;
+  --text-secondary: #78746f;
+  --text-muted: #a09c97;
+  --accent: #3d5a80;
+  --accent-light: #e8eef5;
+  --accent-glow: rgba(61,90,128,.08);
+  --user-bubble: #3d5a80;
+  --user-bubble-text: #ffffff;
+  --assistant-bubble: #ffffff;
+  --assistant-bubble-border: #eae7e4;
+  --coral: #e07b5a;
+  --coral-light: #fdf0eb;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --shadow: 0 2px 12px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.08);
+  --transition: 200ms cubic-bezier(.4,0,.2,1);
 }
 
-#root {
-  height: 100vh;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter','Noto Sans SC',-apple-system,sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(61,90,128,.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(224,123,90,.03) 0%, transparent 50%);
+}
+
+#root { height: 100vh; }
+
+/* 消息入场动画 */
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(12px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }

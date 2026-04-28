@@ -1,136 +1,412 @@
-/* 整体布局：左侧栏 + 右侧聊天区 */
+/* ========== 整体布局 ========== */
 .app-container {
   display: flex;
   height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
 }
 
-/* ========== 左侧会话列表 ========== */
-.sidebar {
-  width: 240px;
-  background: #f5f5f5;
-  border-right: 1px solid #e8e8e8;
+/* ========== 登录页 ========== */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.login-bg-decor {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 30% 20%, rgba(61,90,128,.06) 0%, transparent 100%),
+    radial-gradient(ellipse 500px 350px at 70% 80%, rgba(224,123,90,.04) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.login-card {
+  position: relative;
+  width: 400px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: fadeUp .5s ease-out;
+}
+
+.login-accent-bar {
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--coral));
+}
+
+.login-content { padding: 40px 36px 36px; }
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-icon {
+  margin-bottom: 16px;
+  display: inline-block;
+  filter: drop-shadow(0 4px 8px rgba(61,90,128,.2));
+}
+
+.login-brand h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+}
+
+.login-brand p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Login Tabs */
+.login-tabs {
+  margin-bottom: 8px;
+}
+
+.login-tabs .ant-tabs-nav {
+  margin-bottom: 20px !important;
+}
+
+.login-tabs .ant-tabs-tab {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 0;
+}
+
+.login-tabs .ant-tabs-ink-bar {
+  background: var(--accent);
+  height: 2px;
+}
+
+.login-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--accent) !important;
+}
+
+/* Login Form */
+.login-form {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.login-form .ant-input-affix-wrapper {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  transition: all var(--transition);
+  background: var(--bg);
+}
+
+.login-form .ant-input-affix-wrapper:hover {
+  border-color: var(--accent);
+}
+
+.login-form .ant-input-affix-wrapper:focus-within,
+.login-form .ant-input-affix-wrapper.ant-input-affix-wrapper-focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.login-form .ant-input-affix-wrapper input {
+  font-size: 14px;
+  background: transparent;
+}
+
+.login-form .ant-input-affix-wrapper input::placeholder {
+  color: var(--text-muted);
+}
+
+.login-btn {
+  height: 44px !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: .3px;
+  background: var(--accent) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(61,90,128,.25) !important;
+  transition: all var(--transition) !important;
+  margin-top: 4px;
+}
+
+.login-btn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 16px rgba(61,90,128,.35) !important;
+}
+
+/* ========== 侧边栏 ========== */
+.sidebar {
+  width: 260px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
 
 .sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 20px 16px 16px;
+}
+
+.sidebar-header .ant-btn {
+  height: 38px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 13px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  transition: all var(--transition);
+}
+
+.sidebar-header .ant-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
 }
 
 .session-list {
   flex: 1;
   overflow-y: auto;
+  padding: 0 10px;
 }
 
-.session-item {
+.session-list .ant-list-item {
+  padding: 10px 12px !important;
+  border: none !important;
+  border-radius: var(--radius-sm);
+  margin-bottom: 2px;
   cursor: pointer;
-  padding: 12px 16px !important;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background 0.2s;
+  transition: all var(--transition);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.session-item:hover {
-  background: #e6f7ff;
+.session-list .ant-list-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
-.session-item.active {
-  background: #bae7ff;
+.session-list .ant-list-item.active {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
 }
 
 .session-text {
-  font-size: 13px;
-  color: #333;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+  font-size: 13px;
 }
 
-/* ========== 右侧聊天区 ========== */
+/* ========== 聊天区 ========== */
 .chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--surface);
+  min-width: 0;
 }
 
 .chat-header {
-  padding: 16px 24px;
-  font-size: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 17px;
   font-weight: 600;
-  border-bottom: 1px solid #e8e8e8;
-  color: #1890ff;
+  color: var(--text);
+  letter-spacing: -.2px;
+  background: rgba(255,255,255,.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-/* 消息区域 */
+.chat-header .ant-btn {
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.chat-header .ant-btn:hover {
+  color: var(--coral);
+  border-color: var(--coral);
+  background: var(--coral-light);
+}
+
+/* ========== 消息区 ========== */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(61,90,128,.015) 0%, transparent 60%);
 }
 
 .empty-tip {
   text-align: center;
-  color: #999;
-  margin-top: 120px;
+  color: var(--text-muted);
+  margin-top: 100px;
   font-size: 14px;
+  animation: fadeUp .6s ease-out;
 }
 
-/* 消息行 */
+/* Message Row */
 .msg-row {
   display: flex;
-  margin-bottom: 16px;
+  margin-bottom: 2px;
+  animation: msgIn .3s ease-out backwards;
 }
 
-.msg-row.user {
-  justify-content: flex-end;
-}
+.msg-row:nth-child(1) { animation-delay: 0s; }
+.msg-row:nth-child(2) { animation-delay: .05s; }
+.msg-row:nth-child(3) { animation-delay: .1s; }
 
-.msg-row.assistant {
-  justify-content: flex-start;
-}
+.msg-row.user { justify-content: flex-end; }
+.msg-row.assistant { justify-content: flex-start; }
 
-/* 消息气泡 */
+/* Message Bubble */
 .msg-bubble {
-  max-width: 70%;
-  padding: 10px 16px;
-  border-radius: 12px;
+  max-width: 68%;
+  padding: 12px 18px;
+  border-radius: var(--radius);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   word-break: break-word;
+  position: relative;
 }
 
 .msg-bubble.user {
-  background: #1890ff;
-  color: #fff;
-  border-bottom-right-radius: 4px;
+  background: var(--user-bubble);
+  color: var(--user-bubble-text);
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 2px 8px rgba(61,90,128,.2);
 }
 
 .msg-bubble.assistant {
-  background: #f0f0f0;
-  color: #333;
-  border-bottom-left-radius: 4px;
+  background: var(--assistant-bubble);
+  color: var(--text);
+  border: 1px solid var(--assistant-bubble-border);
+  border-bottom-left-radius: 6px;
+  box-shadow: var(--shadow-sm);
 }
 
+/* Assistant loading bubble */
 .loading-bubble {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #999;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-/* 输入区域 */
+.loading-bubble .ant-spin {
+  color: var(--accent);
+}
+
+/* ========== 输入区 ========== */
 .chat-input {
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid #e8e8e8;
-  background: #fafafa;
+  padding: 16px 28px 20px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg);
 }
 
 .chat-input .ant-input-textarea {
   flex: 1;
+}
+
+.chat-input textarea.ant-input {
+  border-radius: var(--radius) !important;
+  padding: 12px 16px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  border: 1.5px solid var(--border) !important;
+  background: var(--surface) !important;
+  resize: none !important;
+  transition: all var(--transition) !important;
+}
+
+.chat-input textarea.ant-input:hover {
+  border-color: var(--accent) !important;
+}
+
+.chat-input textarea.ant-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+}
+
+.chat-input textarea.ant-input::placeholder {
+  color: var(--text-muted);
+}
+
+.chat-input .ant-btn-primary {
+  height: 42px;
+  width: 42px;
+  border-radius: 50% !important;
+  background: var(--accent) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(61,90,128,.25) !important;
+  transition: all var(--transition) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-input .ant-btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 16px rgba(61,90,128,.35) !important;
+  transform: scale(1.04);
+}
+
+.chat-input .ant-btn-primary:disabled {
+  background: var(--border) !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+/* ========== Scrollbar ========== */
+.chat-messages::-webkit-scrollbar,
+.session-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-messages::-webkit-scrollbar-track,
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb,
+.session-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover,
+.session-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

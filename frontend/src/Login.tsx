@@ -44,50 +44,61 @@ function Login({ onLogin }: Props) {
   }
 
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'center', alignItems: 'center',
-      height: '100vh', background: '#f0f2f5'
-    }}>
-      <div style={{
-        width: 360, padding: 32, background: '#fff',
-        borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <h2 style={{ textAlign: 'center', marginBottom: 24 }}>企业员工助手</h2>
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          centered
-          items={[
-            { key: 'login', label: '登录' },
-            { key: 'register', label: '注册' },
-          ]}
-        />
-        <Input
-          prefix={<UserOutlined />}
-          placeholder="用户名"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{ marginBottom: 12 }}
-          maxLength={20}
-        />
-        <Input.Password
-          prefix={<LockOutlined />}
-          placeholder="密码"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{ marginBottom: 24 }}
-          maxLength={50}
-        />
-        <Button
-          type="primary"
-          block
-          loading={loading}
-          onClick={handleSubmit}
-        >
-          {tab === 'login' ? '登录' : '注册'}
-        </Button>
+    <div className="login-page">
+      <div className="login-bg-decor" />
+      <div className="login-card">
+        <div className="login-accent-bar" />
+        <div className="login-content">
+          <div className="login-brand">
+            <div className="login-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+                <path d="M16 8c-3.3 0-6 2.7-6 6 0 1.7.7 3.3 1.9 4.4l-.5 5.6 4.6-2.5 4.6 2.5-.5-5.6c1.2-1.1 1.9-2.7 1.9-4.4 0-3.3-2.7-6-6-6zm-2 7c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm4 0c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z" fill="#fff"/>
+              </svg>
+            </div>
+            <h1>企业员工助手</h1>
+            <p>公司政策、规定问询，随时为您解答</p>
+          </div>
+
+          <Tabs
+            activeKey={tab}
+            onChange={setTab}
+            centered
+            className="login-tabs"
+            items={[
+              { key: 'login', label: '登录' },
+              { key: 'register', label: '注册' },
+            ]}
+          />
+
+          <div className="login-form">
+            <Input
+              prefix={<UserOutlined style={{color:'var(--text-muted)'}}/>}
+              placeholder="用户名"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              onKeyDown={handleKeyDown}
+              maxLength={20}
+            />
+            <Input.Password
+              prefix={<LockOutlined style={{color:'var(--text-muted)'}}/>}
+              placeholder="密码"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              maxLength={50}
+            />
+            <Button
+              type="primary"
+              block
+              loading={loading}
+              onClick={handleSubmit}
+              className="login-btn"
+            >
+              {tab === 'login' ? '登录' : '注册'}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )
