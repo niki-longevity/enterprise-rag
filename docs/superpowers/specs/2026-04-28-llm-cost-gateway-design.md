@@ -1,12 +1,13 @@
-# LLM 成本追踪网关 + JWT 用户认证 — 设计文档
+# LLM 成本追踪网关 + JWT 用户认证 + 配额控制 — 设计文档
 
 ## 概述
 
-为 Agent 服务增加两个基础模块：
+为 Agent 服务增加三个基础模块：
 1. **JWT 用户认证**：注册/登录，JWT token 鉴权，替代当前明文传 userId
-2. **LLM 成本追踪网关**：LangChain callback 拦截所有 LLM 调用，记录 token/延迟/成本到 MySQL，提供可视化 Dashboard
+2. **配额控制**：基于用户分层的请求频率、日请求数、Token 上限的硬拦截
+3. **LLM 成本追踪网关**：LangChain callback 拦截所有 LLM 调用，记录 token/延迟/成本到 MySQL，提供可视化 Dashboard
 
-实现顺序：JWT 先 → 成本追踪后。成本追踪的 contextvar 由 JWT 的 `get_current_user` dep 自动填充。
+实现顺序：JWT 先 → 配额控制后 → 成本追踪最后。三者通过 Depends 链串联：`get_current_user → check_quota → handler`，成本追踪 callback 利用 `check_quota` 的 token 消耗数据。
 
 ---
 
@@ -119,7 +120,110 @@ passlib[bcrypt]>=1.7.4
 
 ---
 
-# 模块二：LLM 成本追踪网关
+# 模块二：配额控制
+
+## 架构
+
+```
+请求 → get_current_user → check_quota(Depends) → 路由 handler
+                                │
+                     Redis 计数器
+                     ├── ratelimit:rpm:{user_id}    → TTL 60s，INCR + 超频 429
+                     ├── quota:daily:req:{user_id}:{date} → TTL 到午夜，INCR + 超额 429
+                     └── quota:daily:tok:{user_id}:{date} → INCRBY，超额 429
+```
+
+## 用户分层
+
+| 角色 | 日请求 | 日 Token | 每分钟请求 |
+|------|--------|----------|-----------|
+| user | 100 | 200,000 | 10 |
+| vip | 500 | 1,000,000 | 30 |
+
+默认值存储在 `src/auth/quota_defaults.py` 模块常量中。
+
+## 数据模型
+
+### `users` 表追加字段
+
+```sql
+ALTER TABLE users ADD COLUMN role ENUM('user','vip') DEFAULT 'user';
+```
+
+### 新增 `user_quota_overrides` 表
+
+```sql
+CREATE TABLE user_quota_overrides (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT NOT NULL UNIQUE,
+    daily_requests  INT UNSIGNED DEFAULT NULL,   -- NULL = 用角色默认值
+    daily_tokens    INT UNSIGNED DEFAULT NULL,
+    rpm_requests    INT UNSIGNED DEFAULT NULL,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+管理员通过 `/admin/users/{id}/quota` 设置 override，NULL 字段走角色默认值。
+
+## Redis Key 设计
+
+| Key | 类型 | TTL | 说明 |
+|-----|------|-----|------|
+| `ratelimit:rpm:{user_id}` | String | 60s | INCR，超 rpm 阈值得 429 |
+| `quota:daily:req:{user_id}:{date}` | String | 到次日 00:00 | INCR，超日请求数得 429 |
+| `quota:daily:tok:{user_id}:{date}` | String | 到次日 00:00 | INCRBY 实际消耗，超 Token 上限得 429 |
+
+## check_quota Depends
+
+新建 `src/auth/quota.py`：
+
+```python
+async def check_quota(user_id: str = Depends(get_current_user)):
+    # 1. 读取用户 role + override，确定生效阈值
+    # 2. INCR ratelimit:rpm  → 超 rpm → raise 429 "请求过于频繁，请稍后再试"
+    # 3. GET quota:daily:req → 超限 → raise 429 "今日请求次数已用完"
+    # 4. GET quota:daily:tok → 超限 → raise 429 "今日Token额度已用完"
+    # 5. 通过 → 返回 {"user_id", "role", "remaining_requests", "remaining_tokens", "rpm"}
+```
+
+## chat.py Depends 链
+
+```python
+@router.post("/chat")
+async def chat(
+    request: ChatRequest,
+    user_id: str = Depends(get_current_user),
+    quota_info: dict = Depends(check_quota),
+    db: Session = Depends(get_db)
+):
+```
+
+## Token 消耗扣减
+
+成本追踪 callback（模块三）在 `on_llm_end` 拿到实际 token_usage 后，对 `quota:daily:tok:{user_id}:{date}` 做 INCRBY。请求次数已在 `check_quota` 中 INCR，不需要重复扣。
+
+## Admin 配额管理端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/admin/users/{user_id}/quota` | 查看用户配额和当前用量 |
+| PUT | `/admin/users/{user_id}/quota` | 设置 override（{daily_requests, daily_tokens, rpm_requests}） |
+| DELETE | `/admin/users/{user_id}/quota` | 删除 override，恢复角色默认 |
+
+## 文件清单（模块二）
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `src/auth/quota.py` | 新建 | check_quota Depends + Redis 计数器 |
+| `src/auth/quota_defaults.py` | 新建 | 角色默认配额常量 |
+| `src/api/chat.py` | 修改 | 路由加 Depends(check_quota) |
+| `src/db/models.py` | 修改 | users 表加 role + UserQuotaOverride 模型 |
+| `src/api/admin.py` | 修改 | 追加 quota 管理端点（模块三创建时一起加） |
+
+---
+
+# 模块三：LLM 成本追踪网关
 
 ## 架构
 
@@ -313,7 +417,7 @@ CREATE TABLE llm_call_logs (
 - 自动刷新：下拉 15s / 30s / 60s / 关闭，默认 30s
 - 时间范围变更 → 所有图表联动刷新
 
-## 文件清单（模块二）
+## 文件清单（模块三）
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
@@ -339,7 +443,15 @@ CREATE TABLE llm_call_logs (
 4. 带 token 请求正常流式返回
 5. 前端登录/注册 UI 正常，token 持久化到 localStorage
 
-**模块二：**
+**模块二（配额控制）：**
+1. user 角色 100 次/天上限，连续请求超限返回 429
+2. RPM 超频返回 429
+3. Token 超限返回 429
+4. VIP 角色有更高配额
+5. `PUT /admin/users/{id}/quota` 设置 override 后生效
+6. `DELETE /admin/users/{id}/quota` 恢复角色默认
+
+**模块三（成本追踪）：**
 1. 启动服务后访问 `/admin/` 能看到 Dashboard 页面
 2. 发一条对话 → Dashboard 上出现新的调用记录
 3. 日维度折线图数据随日期变化
