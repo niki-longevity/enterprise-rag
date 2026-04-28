@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM 成本追踪 Dashboard</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.header h1 { font-size: 20px; }
+.tabs { display: flex; gap: 4px; background: #e8e8e8; border-radius: 6px; padding: 2px; }
+.tabs button { padding: 6px 16px; border: none; background: transparent; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.tabs button.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar input, .toolbar select { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+.cards { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.card { flex: 1; min-width: 150px; background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.card .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.card .value { font-size: 24px; font-weight: 600; }
+.content { display: flex; gap: 12px; }
+.charts { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.chart-box { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.chart-box h3 { font-size: 14px; margin-bottom: 12px; color: #555; }
+.chart-box canvas { max-height: 280px; }
+.sidebar { width: 280px; display: flex; flex-direction: column; gap: 12px; }
+.sidebar .chart-box { flex-shrink: 0; }
+.sidebar .chart-box canvas { max-height: 200px; }
+.info-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.info-item .k { color: #888; }
+.info-item .v { font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="app">
+<div class="container">
+<div class="header">
+<h1>LLM 成本追踪</h1>
+<div class="tabs">
+<button :class="{active: mode==='day'}" @click="switchMode('day')">日维度</button>
+<button :class="{active: mode==='hour'}" @click="switchMode('hour')">小时</button>
+</div>
+</div>
+<div class="toolbar" v-if="mode==='day'">
+<input type="date" v-model="fromDate">
+<span>—</span>
+<input type="date" v-model="toDate">
+<button @click="fetchAll" style="padding:6px 16px;cursor:pointer;">查询</button>
+<select v-model="refresh" @change="setRefresh">
+<option value="0">关闭自动刷新</option>
+<option value="15">15s</option>
+<option value="30">30s</option>
+<option value="60">60s</option>
+</select>
+<span style="color:#888;font-size:12px;">{{ countdown > 0 ? countdown+'s' : '' }}</span>
+</div>
+<div class="toolbar" v-else>
+<span style="color:#888;">最近 24 小时</span>
+<select v-model="refresh" @change="setRefresh">
+<option value="0">关闭自动刷新</option>
+<option value="15">15s</option>
+<option value="30">30s</option>
+<option value="60">60s</option>
+</select>
+</div>
+<div class="cards">
+<div class="card"><div class="label">活跃用户</div><div class="value">{{ overview.active_users }}</div></div>
+<div class="card"><div class="label">活跃会话</div><div class="value">{{ overview.active_sessions }}</div></div>
+<div class="card"><div class="label">总调用</div><div class="value">{{ overview.total_calls }}</div></div>
+<div class="card"><div class="label">总成本</div><div class="value">¥{{ overview.total_cost }}</div></div>
+</div>
+<div class="content">
+<div class="charts">
+<div class="chart-box" v-if="mode==='day'"><h3>每日成本趋势</h3><canvas id="costChart"></canvas></div>
+<div class="chart-box" v-if="mode==='day'"><h3>每日 Token 趋势</h3><canvas id="tokenChart"></canvas></div>
+<div class="chart-box" v-if="mode==='day'"><h3>每日调用次数</h3><canvas id="callChart"></canvas></div>
+<div class="chart-box" v-if="mode==='hour'"><h3>每小时 Token 趋势</h3><canvas id="htokenChart"></canvas></div>
+<div class="chart-box" v-if="mode==='hour'"><h3>每小时调用次数</h3><canvas id="hcallChart"></canvas></div>
+</div>
+<div class="sidebar">
+<div class="chart-box"><h3>模型成本占比</h3><canvas id="pieChart"></canvas></div>
+<div class="chart-box">
+<h3>时段汇总统计</h3>
+<div class="info-item"><div class="k">每用户平均调用</div><div class="v">{{ agg.per_user.avg_calls }} 次</div></div>
+<div class="info-item"><div class="k">每用户平均输入</div><div class="v">{{ fmtK(agg.per_user.avg_input_tokens) }}</div></div>
+<div class="info-item"><div class="k">每用户平均成本</div><div class="v">¥{{ agg.per_user.avg_cost }}</div></div>
+<div style="height:8px"></div>
+<div class="info-item"><div class="k">每会话平均调用</div><div class="v">{{ agg.per_session.avg_calls }} 次</div></div>
+<div class="info-item"><div class="k">每会话平均输入</div><div class="v">{{ fmtK(agg.per_session.avg_input_tokens) }}</div></div>
+<div class="info-item"><div class="k">每会话平均成本</div><div class="v">¥{{ agg.per_session.avg_cost }}</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+const { createApp } = Vue
+createApp({
+data() {
+const now = new Date()
+return {
+mode: 'day',
+fromDate: new Date(now-7*864e5).toISOString().slice(0,10),
+toDate: now.toISOString().slice(0,10),
+refresh: 30,
+countdown: 0,
+timer: null,
+overview: {active_users:0,active_sessions:0,total_calls:0,total_cost:0},
+days: [], hours: [],
+agg: {per_user:{avg_calls:0,avg_input_tokens:0,avg_output_tokens:0,avg_cost:0},per_session:{avg_calls:0,avg_input_tokens:0,avg_cost:0}},
+charts: {}
+}
+},
+methods: {
+fmtK(v) { return v >= 1000 ? (v/1000).toFixed(1)+'K' : v },
+async fetchAll() {
+const p = this.mode === 'day' ? `from=${this.fromDate}&to=${this.toDate}` : ''
+const base = this.mode === 'day' ? `/admin/stats/trend?${p}` : '/admin/stats/trend-hourly'
+const [ov, trend, agg] = await Promise.all([
+fetch(`/admin/stats/overview?${p}`).then(r=>r.json()),
+fetch(base).then(r=>r.json()),
+fetch(`/admin/stats/aggregation?${p}`).then(r=>r.json()),
+])
+this.overview = ov
+this.agg = agg
+if (this.mode === 'day') { this.days = trend.days; this.renderDay() }
+else { this.hours = trend.hours; this.renderHour() }
+},
+switchMode(m) {
+this.mode = m
+this.$nextTick(() => this.fetchAll())
+},
+setRefresh() {
+clearInterval(this.timer)
+if (this.refresh > 0) {
+this.countdown = this.refresh
+this.timer = setInterval(() => {
+this.countdown--
+if (this.countdown <= 0) { this.countdown = this.refresh; this.fetchAll() }
+}, 1000)
+} else { this.countdown = 0 }
+},
+renderDay() {
+const labels = this.days.map(d=>d.date)
+const types = ['chat','embedding','rerank']
+const colors = {chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
+const datasets = (field) => types.map(t=>({label:t,data:this.days.map(d=>(d.models[t]||{})[field]||0),borderColor:colors[t],backgroundColor:colors[t]+'20',fill:false,tension:0.3}))
+this._render('costChart', labels, datasets('cost'), 'line')
+this._render('tokenChart', labels, [
+{label:'输入Token',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
+{label:'输出Token',data:this.days.map(d=>{let s=0;types.forEach(t=>s+=(d.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
+], 'line')
+this._render('callChart', labels, datasets('calls'), 'line')
+this.renderPie()
+},
+renderHour() {
+const labels = this.hours.map(h=>h.hour.slice(11))
+const types = ['chat','embedding','rerank']
+this._render('htokenChart', labels, [
+{label:'输入Token',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).input_tokens||0);return s}),borderColor:'#1677ff',tension:0.3},
+{label:'输出Token',data:this.hours.map(h=>{let s=0;types.forEach(t=>s+=(h.models[t]||{}).output_tokens||0);return s}),borderColor:'#52c41a',tension:0.3},
+], 'line')
+const colors = {chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
+this._render('hcallChart', labels, types.map(t=>({label:t,data:this.hours.map(h=>(h.models[t]||{}).calls||0),borderColor:colors[t],backgroundColor:colors[t]+'20',fill:false,tension:0.3})), 'line')
+this.renderPie()
+},
+renderPie() {
+let totals = {}
+const items = this.mode==='day'?this.days:this.hours
+items.forEach(it => {
+Object.entries(it.models||{}).forEach(([t,m])=>{totals[t]=(totals[t]||0)+m.cost})
+})
+const types=['chat','embedding','rerank']
+const bg={chat:'#1677ff',embedding:'#52c41a',rerank:'#fa8c16'}
+this._render('pieChart', types, [{data:types.map(t=>totals[t]||0),backgroundColor:types.map(t=>bg[t])}], 'doughnut')
+},
+_render(id, labels, datasets, type) {
+if (this.charts[id]) this.charts[id].destroy()
+const ctx = document.getElementById(id)
+if (!ctx) return
+this.charts[id] = new Chart(ctx, {
+type,
+data: {labels, datasets},
+options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,fontSize:11}}},
+scales: type!=='doughnut'?{y:{beginAtZero:true,ticks:{fontSize:11}},x:{ticks:{fontSize:10,maxRotation:45}}}:{}}
+})
+}
+},
+mounted() { this.fetchAll(); this.setRefresh() },
+}).mount('#app')
+</script>
+</body>
+</html>

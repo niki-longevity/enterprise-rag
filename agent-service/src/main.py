@@ -1,16 +1,20 @@
 # FastAPI启动入口
 # 启动员工助手服务，监听8001端口，前端直接调用此服务
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from src.config.settings import settings
 from src.api import chat, webhook, auth, admin
 
 app = FastAPI(title="Employee Assistant Agent", version="1.0.0")
 
-# 注册路由，前端直接调 /api/chat 等接口
+# 注册路由
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(webhook.router, prefix="/api", tags=["webhook"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
+
+# 静态文件 (Dashboard) — 挂到 /dashboard，避免与 /admin API 冲突
+app.mount("/dashboard", StaticFiles(directory="src/static", html=True), name="dashboard")
 
 
 @app.get("/health")
