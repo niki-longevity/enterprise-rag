@@ -19,7 +19,7 @@ function Login({ onLogin }: Props) {
     }
     setLoading(true)
     try {
-      const endpoint = tab === 'login' ? '/api/auth/login' : '/api/auth/register'
+      const endpoint = tab === 'login' ? '/api/login' : '/api/register'
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     nacos_group: str = "DEFAULT_GROUP"
 
     # JWT 认证
-    jwt_secret: str = os.getenv("JWT_SECRET", "ea-jwt-secret-change-in-prod")
+    jwt_secret: str = os.getenv("JWT_SECRET", "employee-assistant-jwt-secret-key-2026")
     jwt_algorithm: str = "HS256"
     jwt_expire_days: int = 7
 

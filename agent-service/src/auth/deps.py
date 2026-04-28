@@ -1,4 +1,5 @@
 # JWT 鉴权依赖 + 成本追踪用 contextvar
+from typing import Optional
 import contextvars
 import jwt
 from fastapi import Header, HTTPException
@@ -10,11 +11,13 @@ _tracking_ctx: contextvars.ContextVar = contextvars.ContextVar('tracking', defau
 __all__ = ["get_current_user", "_tracking_ctx"]
 
 
-async def get_current_user(authorization: str = Header(...)) -> str:
+async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """从 Authorization: Bearer <token> 解析 JWT，返回 user_id
 
     同时设置 _tracking_ctx，供后续 LLM 成本追踪回调使用。
     """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
     try:
         scheme, token = authorization.split(" ", 1)
         if scheme.lower() != "bearer":

@@ -1,8 +1,8 @@
 # 认证API路由 - 注册/登录
 import datetime
+import bcrypt
 import jwt
 from fastapi import APIRouter, HTTPException
-from passlib.hash import bcrypt
 from pydantic import BaseModel, Field
 
 from src.db.session import SessionLocal
@@ -40,7 +40,9 @@ def register(req: AuthRequest):
 
         user = User(
             username=req.username,
-            password_hash=bcrypt.hash(req.password),
+            password_hash=bcrypt.hashpw(
+                req.password.encode('utf-8'), bcrypt.gensalt()
+            ).decode('utf-8'),
         )
         mapper.save(user)
         return {"token": _create_token(user)}
@@ -55,7 +57,10 @@ def login(req: AuthRequest):
     try:
         mapper = BaseMapper(User, db)
         users = mapper.list_by_field("username", req.username)
-        if not users or not bcrypt.verify(req.password, users[0].password_hash):
+        if not users or not bcrypt.checkpw(
+            req.password.encode('utf-8'),
+            users[0].password_hash.encode('utf-8')
+        ):
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
         return {"token": _create_token(users[0])}
