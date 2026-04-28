@@ -9,5 +9,3 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     user_id: str
     session_id: str
-    guard_result: str      # safe / unsafe
-    guard_reason: str       # 拦截原因

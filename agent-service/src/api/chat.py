@@ -10,6 +10,7 @@ from src.agent.graph import agent_graph
 from src.agent.nodes import get_llm
 from src.auth.deps import get_current_user, _tracking_ctx
 from src.auth.quota import check_quota
+from src.agent.guard import check_message
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
@@ -119,8 +120,20 @@ async def chat_stream_impl(
     async def generate() -> AsyncGenerator[str, None]:
         full_reply = ""
         try:
+            # 前置防注入守卫（在图外运行，不污染 astream_events）
+            is_safe, guard_reply = check_message(message)
+            if not is_safe:
+                full_reply = guard_reply
+                yield f"data: {json.dumps({'type': 'content', 'content': guard_reply}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'end', 'session_id': session_id}, ensure_ascii=False)}\n\n"
+                # 保存 guard 回复
+                assistant_msg = ChatHistory(session_id=session_id, user_id=userId, role="ASSISTANT", content=guard_reply)
+                mapper.save(assistant_msg)
+                redis_client.rpush(memory_key, json.dumps({"role": "USER", "content": message}, ensure_ascii=False))
+                redis_client.rpush(memory_key, json.dumps({"role": "ASSISTANT", "content": guard_reply}, ensure_ascii=False))
+                return
+
             _tracking_ctx.set({"user_id": userId, "session_id": session_id, "node_type": "agent"})
-            # 真正的流式：使用 astream_events 实时获取 LLM 输出
             async for event in agent_graph.astream_events(initial_state, version="v2", config={"recursion_limit": 8}):
                 if event["event"] == "on_chat_model_stream":
                     chunk = event["data"]["chunk"].content
