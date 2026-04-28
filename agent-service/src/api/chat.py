@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
 from src.agent.nodes import get_llm
 from src.auth.deps import get_current_user
+from src.auth.quota import check_quota
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
 from src.db.models import ChatHistory
@@ -157,6 +158,7 @@ async def chat_stream_impl(
 async def chat(
     request: ChatRequest,
     user_id: str = Depends(get_current_user),
+    quota_info: dict = Depends(check_quota),
     db: Session = Depends(get_db)
 ):
     """流式对话接口"""
