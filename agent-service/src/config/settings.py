@@ -62,5 +62,10 @@ class Settings(BaseSettings):
     nacos_data_id: str = "policies-gray-config"
     nacos_group: str = "DEFAULT_GROUP"
 
+    # JWT 认证
+    jwt_secret: str = os.getenv("JWT_SECRET", "ea-jwt-secret-change-in-prod")
+    jwt_algorithm: str = "HS256"
+    jwt_expire_days: int = 7
+
 
 settings = Settings()
