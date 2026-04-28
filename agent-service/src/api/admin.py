@@ -8,96 +8,104 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func as sa_func
 
 from src.db.session import SessionLocal
-from src.db.models import User, UserQuotaOverride, LLMCallLog
+from src.db.models import User, RoleQuotaConfig, LLMCallLog
 from src.db.mapper import BaseMapper
 from src.db.session import engine
+from src.config.client import redis_client
+from src.auth.quota_defaults import QUOTA_DEFAULTS
 from sqlalchemy import text
 
 router = APIRouter()
 
 
-class QuotaOverrideRequest(BaseModel):
-    daily_requests: int | None = Field(None, ge=0)
-    daily_tokens: int | None = Field(None, ge=0)
-    rpm_requests: int | None = Field(None, ge=0)
+class RoleQuotaRequest(BaseModel):
+    daily_requests: int = Field(..., ge=1)
+    daily_tokens: int = Field(..., ge=1)
+    rpm_requests: int = Field(..., ge=1)
 
 
-@router.get("/users/{user_id}/quota")
-def get_user_quota(user_id: int):
-    """查看用户配额覆盖和当前用量"""
+# ── 角色配额管理 ──────────────────────────────────────────
+
+@router.get("/quota/roles")
+def list_role_quotas():
+    """列出所有角色的配额配置"""
     db = SessionLocal()
     try:
-        user_mapper = BaseMapper(User, db)
-        user = user_mapper.get_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="用户不存在")
-
-        override_mapper = BaseMapper(UserQuotaOverride, db)
-        overrides = override_mapper.list_by_field("user_id", user_id)
-        override = overrides[0] if overrides else None
-
-        return {
-            "user_id": user_id,
-            "username": user.username,
-            "role": user.role,
-            "override": {
-                "daily_requests": override.daily_requests,
-                "daily_tokens": override.daily_tokens,
-                "rpm_requests": override.rpm_requests,
-            } if override else None,
-        }
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_all()
+        result = {}
+        for role, defaults in QUOTA_DEFAULTS.items():
+            entry = {"role": role, "daily_requests": defaults["daily_requests"],
+                     "daily_tokens": defaults["daily_tokens"], "rpm_requests": defaults["rpm_requests"],
+                     "source": "default"}
+            for c in configs:
+                if c.role == role:
+                    entry["daily_requests"] = c.daily_requests
+                    entry["daily_tokens"] = c.daily_tokens
+                    entry["rpm_requests"] = c.rpm_requests
+                    entry["source"] = "custom"
+                    break
+            result[role] = entry
+        return result
     finally:
         db.close()
 
 
-@router.put("/users/{user_id}/quota")
-def set_user_quota(user_id: int, req: QuotaOverrideRequest):
-    """设置用户配额覆盖"""
+@router.put("/quota/roles/{role}")
+def update_role_quota(role: str, req: RoleQuotaRequest):
+    """更新角色配额（写 DB + 更新 Redis）"""
+    if role not in QUOTA_DEFAULTS:
+        raise HTTPException(status_code=400, detail=f"无效角色: {role}")
+
     db = SessionLocal()
     try:
-        user_mapper = BaseMapper(User, db)
-        if not user_mapper.get_by_id(user_id):
-            raise HTTPException(status_code=404, detail="用户不存在")
-
-        override_mapper = BaseMapper(UserQuotaOverride, db)
-        overrides = override_mapper.list_by_field("user_id", user_id)
-
-        if overrides:
-            override = overrides[0]
-            if req.daily_requests is not None:
-                override.daily_requests = req.daily_requests
-            if req.daily_tokens is not None:
-                override.daily_tokens = req.daily_tokens
-            if req.rpm_requests is not None:
-                override.rpm_requests = req.rpm_requests
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_by_field("role", role)
+        if configs:
+            c = configs[0]
+            c.daily_requests = req.daily_requests
+            c.daily_tokens = req.daily_tokens
+            c.rpm_requests = req.rpm_requests
             db.commit()
         else:
-            override = UserQuotaOverride(
-                user_id=user_id,
+            mapper.save(RoleQuotaConfig(
+                role=role,
                 daily_requests=req.daily_requests,
                 daily_tokens=req.daily_tokens,
                 rpm_requests=req.rpm_requests,
-            )
-            override_mapper.save(override)
-
-        return {"status": "ok"}
+            ))
     finally:
         db.close()
 
+    # 同步到 Redis
+    redis_client.set(f"quota:config:{role}", json.dumps({
+        "daily_requests": req.daily_requests,
+        "daily_tokens": req.daily_tokens,
+        "rpm_requests": req.rpm_requests,
+    }))
+    return {"status": "ok"}
 
-@router.delete("/users/{user_id}/quota")
-def delete_user_quota(user_id: int):
-    """删除用户配额覆盖，恢复默认"""
+
+@router.delete("/quota/roles/{role}")
+def reset_role_quota(role: str):
+    """重置角色配额为默认值"""
+    if role not in QUOTA_DEFAULTS:
+        raise HTTPException(status_code=400, detail=f"无效角色: {role}")
+
     db = SessionLocal()
     try:
-        override_mapper = BaseMapper(UserQuotaOverride, db)
-        overrides = override_mapper.list_by_field("user_id", user_id)
-        if overrides:
-            db.delete(overrides[0])
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_by_field("role", role)
+        if configs:
+            db.delete(configs[0])
             db.commit()
-        return {"status": "ok"}
     finally:
         db.close()
+
+    # Redis 恢复默认
+    defaults = QUOTA_DEFAULTS[role]
+    redis_client.set(f"quota:config:{role}", json.dumps(dict(defaults)))
+    return {"status": "ok"}
 
 
 # ── 成本追踪统计端点 ──────────────────────────────────────────

@@ -8,6 +8,12 @@ from src.api import chat, webhook, auth, admin
 
 app = FastAPI(title="Employee Assistant Agent", version="1.0.0")
 
+
+@app.on_event("startup")
+def on_startup():
+    from src.auth.quota import seed_quota_config
+    seed_quota_config()
+
 # 注册路由
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(webhook.router, prefix="/api", tags=["webhook"])

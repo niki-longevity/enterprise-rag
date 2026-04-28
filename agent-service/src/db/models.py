@@ -28,15 +28,14 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
-class UserQuotaOverride(Base):
-    """用户配额覆盖"""
-    __tablename__ = "user_quota_overrides"
+class RoleQuotaConfig(Base):
+    """角色配额配置（管理员可调）"""
+    __tablename__ = "role_quota_config"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, unique=True)
-    daily_requests = Column(Integer, nullable=True)
-    daily_tokens = Column(Integer, nullable=True)
-    rpm_requests = Column(Integer, nullable=True)
+    role = Column(String(20), primary_key=True)
+    daily_requests = Column(Integer, nullable=False)
+    daily_tokens = Column(Integer, nullable=False)
+    rpm_requests = Column(Integer, nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

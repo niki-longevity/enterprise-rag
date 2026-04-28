@@ -114,30 +114,30 @@ body { font-family: -apple-system, sans-serif; background: #f0f2f5; color: #333;
 <div class="chart-box">
 <h3>配额管理</h3>
 <div class="quota-form">
-<label>用户ID</label>
+<label>角色</label>
 <div class="quota-row">
-<input v-model="quotaUid" placeholder="输入用户ID" style="flex:1">
-<button class="btn btn-default" @click="loadQuota" style="flex:0 0 60px">查询</button>
+<select v-model="quotaRole" @change="loadQuota" style="flex:1;padding:6px;border:1px solid #d9d9d9;border-radius:4px;">
+<option value="user">普通用户 (user)</option>
+<option value="vip">VIP</option>
+</select>
+<button class="btn btn-default" @click="loadQuota" style="flex:0 0 60px">刷新</button>
 </div>
-<div v-if="quotaData" style="margin-top: 4px;">
-<div class="info-item"><div class="k">用户名</div><div class="v">{{ quotaData.username }}</div></div>
-<div class="info-item"><div class="k">角色</div><div class="v">{{ quotaData.role }}</div></div>
-<div class="info-item" v-if="quotaData.override"><div class="k">当前覆盖</div><div class="v">请求{{ quotaData.override.daily_requests || '-' }} / Token{{ quotaData.override.daily_tokens || '-' }} / RPM{{ quotaData.override.rpm_requests || '-' }}</div></div>
+<div v-if="quotaData" style="margin-top: 8px;">
+<div class="info-item"><div class="k">来源</div><div class="v">{{ quotaData.source==='default' ? '系统默认' : '管理员设定' }}</div></div>
 <div style="border-top:1px solid #eee;margin:8px 0;padding-top:8px;">
 <label>日请求上限</label>
-<input v-model="quotaForm.daily_requests" placeholder="留空=默认" type="number" min="0">
+<input v-model.number="quotaForm.daily_requests" type="number" min="1">
 <label>日Token上限</label>
-<input v-model="quotaForm.daily_tokens" placeholder="留空=默认" type="number" min="0">
+<input v-model.number="quotaForm.daily_tokens" type="number" min="1">
 <label>RPM上限</label>
-<input v-model="quotaForm.rpm_requests" placeholder="留空=默认" type="number" min="0">
+<input v-model.number="quotaForm.rpm_requests" type="number" min="1">
 </div>
 <div class="quota-row" style="margin-top:8px">
-<button class="btn btn-primary" @click="saveQuota">保存覆盖</button>
+<button class="btn btn-primary" @click="saveQuota">保存</button>
 <button class="btn btn-danger" @click="resetQuota">恢复默认</button>
 </div>
 <div class="msg" :class="quotaMsg.type">{{ quotaMsg.text }}</div>
 </div>
-<div v-else-if="quotaLoaded" class="msg err">用户不存在</div>
 </div>
 </div>
 
@@ -159,11 +159,10 @@ overview: {active_users:0,active_sessions:0,total_calls:0,total_cost:0},
 days: [], hours: [],
 agg: {per_user:{avg_calls:0,avg_input_tokens:0,avg_output_tokens:0,avg_cost:0},per_session:{avg_calls:0,avg_input_tokens:0,avg_cost:0}},
 charts: {},
-// 配额管理
-quotaUid: '1',
+// 配额管理（按角色）
+quotaRole: 'user',
 quotaData: null,
-quotaLoaded: false,
-quotaForm: {daily_requests:null,daily_tokens:null,rpm_requests:null},
+quotaForm: {daily_requests:0,daily_tokens:0,rpm_requests:0},
 quotaMsg: {type:'',text:''},
 }
 },
@@ -238,42 +237,32 @@ scales: type!=='doughnut' ? { y: { beginAtZero: true }, x: { ticks: { maxRotatio
 }
 })
 },
-// 配额管理
+// 配额管理（按角色）
 async loadQuota() {
-const uid = parseInt(this.quotaUid)
-if (!uid) return
 try {
-const r = await fetch(`/admin/users/${uid}/quota`)
-if (!r.ok) { this.quotaData = null; this.quotaLoaded = true; return }
-this.quotaData = await r.json()
-this.quotaLoaded = true
+const r = await fetch('/admin/quota/roles')
+const roles = await r.json()
+this.quotaData = roles[this.quotaRole]
+this.quotaForm = { daily_requests: this.quotaData.daily_requests, daily_tokens: this.quotaData.daily_tokens, rpm_requests: this.quotaData.rpm_requests }
 this.quotaMsg = {type:'',text:''}
-const ov = this.quotaData.override || {}
-this.quotaForm = { daily_requests: ov.daily_requests ?? null, daily_tokens: ov.daily_tokens ?? null, rpm_requests: ov.rpm_requests ?? null }
 } catch { this.quotaMsg = {type:'err',text:'加载失败'} }
 },
 async saveQuota() {
-const uid = parseInt(this.quotaUid)
-const body = {}
-if (this.quotaForm.daily_requests !== null && this.quotaForm.daily_requests !== '') body.daily_requests = parseInt(this.quotaForm.daily_requests)
-if (this.quotaForm.daily_tokens !== null && this.quotaForm.daily_tokens !== '') body.daily_tokens = parseInt(this.quotaForm.daily_tokens)
-if (this.quotaForm.rpm_requests !== null && this.quotaForm.rpm_requests !== '') body.rpm_requests = parseInt(this.quotaForm.rpm_requests)
+const body = { daily_requests: this.quotaForm.daily_requests, daily_tokens: this.quotaForm.daily_tokens, rpm_requests: this.quotaForm.rpm_requests }
 try {
-const r = await fetch(`/admin/users/${uid}/quota`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
-if (r.ok) { this.quotaMsg = {type:'ok',text:'保存成功'}; this.loadQuota() }
+const r = await fetch(`/admin/quota/roles/${this.quotaRole}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+if (r.ok) { this.quotaMsg = {type:'ok',text:'保存成功，全体生效'}; this.loadQuota() }
 else { const e = await r.json(); this.quotaMsg = {type:'err',text: e.detail || '保存失败'} }
 } catch { this.quotaMsg = {type:'err',text:'网络错误'} }
 },
 async resetQuota() {
-const uid = parseInt(this.quotaUid)
 try {
-const r = await fetch(`/admin/users/${uid}/quota`, { method: 'DELETE' })
-if (r.ok) { this.quotaMsg = {type:'ok',text:'已恢复默认'}; this.quotaForm = {daily_requests:null,daily_tokens:null,rpm_requests:null}; this.loadQuota() }
+const r = await fetch(`/admin/quota/roles/${this.quotaRole}`, { method: 'DELETE' })
+if (r.ok) { this.quotaMsg = {type:'ok',text:'已恢复默认，全体生效'}; this.loadQuota() }
 else { const e = await r.json(); this.quotaMsg = {type:'err',text: e.detail || '重置失败'} }
 } catch { this.quotaMsg = {type:'err',text:'网络错误'} }
-}
 },
-mounted() { this.fetchAll(); this.setRefresh() },
+mounted() { this.fetchAll(); this.setRefresh(); this.loadQuota() },
 }).mount('#app')
 </script>
 </body>
