@@ -3,15 +3,15 @@
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from src.config.settings import settings
-from src.api import chat, webhook, auth, admin
+from src.shared.config import settings
+from src.presentation import chat, webhook, auth, admin
 
 app = FastAPI(title="Employee Assistant Agent", version="1.0.0")
 
 
 @app.on_event("startup")
 def on_startup():
-    from src.auth.quota import seed_quota_config
+    from src.application.quota import seed_quota_config
     seed_quota_config()
 
 # 注册路由

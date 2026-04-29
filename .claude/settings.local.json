@@ -81,7 +81,12 @@
       "Bash(sed -i 's/from src\\\\.db\\\\.mapper import/from src.infrastructure.database.mapper import/g' src/**/*.py src/**/**/*.py)",
       "Bash(sed -i 's/from src\\\\.domain\\\\.models import/from src.domain.models import/g' src/infrastructure/database/mapper.py)",
       "Bash(sed -i 's/from src\\\\.config\\\\.client import redis_client/from src.infrastructure.cache.redis import redis_client/g' src/**/*.py src/**/**/*.py)",
-      "Bash(sed -i 's/from src\\\\.storage\\\\.minio_store import/from src.infrastructure.storage.minio import/g' src/**/*.py src/**/**/*.py)"
+      "Bash(sed -i 's/from src\\\\.storage\\\\.minio_store import/from src.infrastructure.storage.minio import/g' src/**/*.py src/**/**/*.py)",
+      "Bash(cp src/api/chat.py src/presentation/chat.py)",
+      "Bash(cp src/api/auth.py src/presentation/auth.py)",
+      "Bash(cp src/api/admin.py src/presentation/admin.py)",
+      "Bash(cp src/api/webhook.py src/presentation/webhook.py)",
+      "Bash(sed -i 's/from src\\\\.api\\\\.\\\\\\(chat\\\\|auth\\\\|admin\\\\|webhook\\\\\\) import/from src.presentation.\\\\1 import/g' src/main.py)"
     ]
   },
   "enabledPlugins": {
