@@ -1,1 +1,0 @@
-我的python解释器：C:\Users\15219.conda\envs\pytorch\python.exe
