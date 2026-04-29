@@ -46,7 +46,7 @@ body { font-family: "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 /* Stat cards */
-.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+.stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px; }
 .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; }
 .stat-card .slabel { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
 .stat-card .svalue { font-size:26px; font-weight:700; color:#e8ecf1; }
@@ -144,6 +144,10 @@ body { font-family: "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
       <div class="slabel">总成本</div>
       <div class="svalue cost">&yen;{{ overview.total_cost }}</div>
     </div>
+    <div class="stat-card">
+      <div class="slabel">平均延迟</div>
+      <div class="svalue">{{ overview.avg_latency_ms }}<span style="font-size:14px;color:var(--text2);">ms</span></div>
+    </div>
   </div>
 
   <!-- Main content -->
@@ -176,10 +180,12 @@ body { font-family: "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
         <div class="info-row"><span class="ik">每用户平均输入</span><span class="iv">{{ fmtNum(agg.per_user.avg_input_tokens) }} tokens</span></div>
         <div class="info-row"><span class="ik">每用户平均输出</span><span class="iv">{{ fmtNum(agg.per_user.avg_output_tokens) }} tokens</span></div>
         <div class="info-row"><span class="ik">每用户平均成本</span><span class="iv">&yen;{{ agg.per_user.avg_cost }}</span></div>
+        <div class="info-row"><span class="ik">每用户平均延迟</span><span class="iv">{{ agg.per_user.avg_latency_ms }}ms</span></div>
         <div style="height:8px;"></div>
         <div class="info-row"><span class="ik">每会话平均调用</span><span class="iv">{{ agg.per_session.avg_calls }} 次</span></div>
         <div class="info-row"><span class="ik">每会话平均输入</span><span class="iv">{{ fmtNum(agg.per_session.avg_input_tokens) }} tokens</span></div>
         <div class="info-row"><span class="ik">每会话平均成本</span><span class="iv">&yen;{{ agg.per_session.avg_cost }}</span></div>
+        <div class="info-row"><span class="ik">每会话平均延迟</span><span class="iv">{{ agg.per_session.avg_latency_ms }}ms</span></div>
       </div>
 
       <!-- Quota management -->

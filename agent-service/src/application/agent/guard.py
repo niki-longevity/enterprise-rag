@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 
 from src.shared.config import settings
+from src.shared.tracking.callback import tracking_callback
 
 
 def _get_guard_llm():
@@ -13,6 +14,7 @@ def _get_guard_llm():
         model=settings.tencent_model,
         api_key=settings.tencent_api_key,
         base_url=settings.tencent_base_url,
+        callbacks=[tracking_callback],
         temperature=0.5,
     )
 

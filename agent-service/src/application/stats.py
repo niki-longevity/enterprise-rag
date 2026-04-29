@@ -30,7 +30,8 @@ def get_overview(from_: str | None = None, to: str | None = None) -> dict:
                 COALESCE(SUM(cost), 0) AS total_cost,
                 COALESCE(SUM(input_tokens), 0) AS total_input,
                 COALESCE(SUM(output_tokens), 0) AS total_output,
-                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error_count
+                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error_count,
+                COALESCE(AVG(latency_ms), 0) AS avg_latency
             FROM llm_call_logs
             WHERE created_at >= :start AND created_at < :end2
         """), {"start": start, "end2": end + timedelta(days=1)}).fetchone()
@@ -38,7 +39,7 @@ def get_overview(from_: str | None = None, to: str | None = None) -> dict:
             "active_users": r[0], "active_sessions": r[1],
             "total_calls": r[2], "total_cost": round(float(r[3]), 4),
             "total_input_tokens": r[4], "total_output_tokens": r[5],
-            "error_count": r[6],
+            "error_count": r[6], "avg_latency_ms": int(r[7] or 0),
         }
 
 
@@ -52,6 +53,7 @@ def get_trend(from_: str | None = None, to: str | None = None) -> dict:
                    COALESCE(SUM(input_tokens), 0) AS itok,
                    COALESCE(SUM(output_tokens), 0) AS otok,
                    COALESCE(SUM(cost), 0) AS cost,
+                   COALESCE(AVG(latency_ms), 0) AS avg_lat,
                    COUNT(DISTINCT user_id) AS users,
                    COUNT(DISTINCT session_id) AS sessions
             FROM llm_call_logs
@@ -68,9 +70,10 @@ def get_trend(from_: str | None = None, to: str | None = None) -> dict:
             days[d]["models"][row[1]] = {
                 "calls": row[2], "input_tokens": row[3],
                 "output_tokens": row[4], "cost": round(float(row[5]), 4),
+                "avg_latency_ms": int(row[6] or 0),
             }
-            days[d]["active_users"] = max(days[d]["active_users"], row[6])
-            days[d]["active_sessions"] = max(days[d]["active_sessions"], row[7])
+            days[d]["active_users"] = max(days[d]["active_users"], row[7])
+            days[d]["active_sessions"] = max(days[d]["active_sessions"], row[8])
 
         return {"days": list(days.values())}
 
@@ -83,7 +86,8 @@ def get_trend_hourly() -> dict:
                    COUNT(*) AS calls,
                    COALESCE(SUM(input_tokens), 0) AS itok,
                    COALESCE(SUM(output_tokens), 0) AS otok,
-                   COALESCE(SUM(cost), 0) AS cost
+                   COALESCE(SUM(cost), 0) AS cost,
+                   COALESCE(AVG(latency_ms), 0) AS avg_lat
             FROM llm_call_logs
             WHERE created_at >= NOW() - INTERVAL 24 HOUR
             GROUP BY h, model_type
@@ -98,6 +102,7 @@ def get_trend_hourly() -> dict:
             hours[h]["models"][row[1]] = {
                 "calls": row[2], "input_tokens": row[3],
                 "output_tokens": row[4], "cost": round(float(row[5]), 4),
+                "avg_latency_ms": int(row[6] or 0),
             }
 
         return {"hours": list(hours.values())}
@@ -108,12 +113,13 @@ def get_aggregation(from_: str | None = None, to: str | None = None) -> dict:
     start, end = _parse_date_range(from_, to)
     with engine.connect() as conn:
         u = conn.execute(text("""
-            SELECT AVG(calls), AVG(itok), AVG(otok), AVG(cost)
+            SELECT AVG(calls), AVG(itok), AVG(otok), AVG(cost), AVG(alat)
             FROM (
                 SELECT user_id, COUNT(*) AS calls,
                        COALESCE(SUM(input_tokens), 0) AS itok,
                        COALESCE(SUM(output_tokens), 0) AS otok,
-                       COALESCE(SUM(cost), 0) AS cost
+                       COALESCE(SUM(cost), 0) AS cost,
+                       COALESCE(AVG(latency_ms), 0) AS alat
                 FROM llm_call_logs
                 WHERE created_at >= :start AND created_at < :end2
                 GROUP BY user_id
@@ -121,12 +127,13 @@ def get_aggregation(from_: str | None = None, to: str | None = None) -> dict:
         """), {"start": start, "end2": end + timedelta(days=1)}).fetchone()
 
         s = conn.execute(text("""
-            SELECT AVG(calls), AVG(itok), AVG(otok), AVG(cost)
+            SELECT AVG(calls), AVG(itok), AVG(otok), AVG(cost), AVG(alat)
             FROM (
                 SELECT session_id, COUNT(*) AS calls,
                        COALESCE(SUM(input_tokens), 0) AS itok,
                        COALESCE(SUM(output_tokens), 0) AS otok,
-                       COALESCE(SUM(cost), 0) AS cost
+                       COALESCE(SUM(cost), 0) AS cost,
+                       COALESCE(AVG(latency_ms), 0) AS alat
                 FROM llm_call_logs
                 WHERE created_at >= :start AND created_at < :end2
                 GROUP BY session_id
@@ -139,11 +146,13 @@ def get_aggregation(from_: str | None = None, to: str | None = None) -> dict:
                 "avg_input_tokens": int(u[1] or 0),
                 "avg_output_tokens": int(u[2] or 0),
                 "avg_cost": round(float(u[3] or 0), 4),
+                "avg_latency_ms": int(u[4] or 0),
             },
             "per_session": {
                 "avg_calls": round(float(s[0] or 0), 1),
                 "avg_input_tokens": int(s[1] or 0),
                 "avg_output_tokens": int(s[2] or 0),
                 "avg_cost": round(float(s[3] or 0), 4),
+                "avg_latency_ms": int(s[4] or 0),
             },
         }

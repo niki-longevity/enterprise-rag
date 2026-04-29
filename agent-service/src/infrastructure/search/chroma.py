@@ -37,6 +37,21 @@ def _track_rerank_inline(response):
         input_tokens=usage.input_tokens or 0,
     )
 
+
+def _track_embedding_inline(model_name: str, query_len: int):
+    """记录 embedding 调用（估算 token = 查询字符数）"""
+    ctx = _tracking_ctx.get()
+    if not ctx or not ctx.get("user_id"):
+        return
+    track_embedding(
+        user_id=ctx["user_id"],
+        session_id=ctx.get("session_id") or "",
+        model_name=model_name,
+        model_type="embedding",
+        node_type="query",
+        input_tokens=query_len,  # 粗略估算
+    )
+
 # ChromaDB 持久化客户端
 _chroma_client = chromadb.PersistentClient(path=app_settings.chroma_db_path)
 
@@ -143,6 +158,7 @@ def search(query: str, top_k: int = 5, is_gray: Optional[bool] = None) -> List[d
 
     where = _build_where_clause(is_gray)
     query_embedding = Settings.embed_model.get_text_embedding(query)
+    _track_embedding_inline("text-embedding-v2", len(query))
 
     results = _collection.query(
         query_embeddings=[query_embedding],
@@ -189,6 +205,7 @@ def search_no_rerank(query: str, top_k: int = 5, is_gray: Optional[bool] = None)
 
     where = _build_where_clause(is_gray)
     query_embedding = Settings.embed_model.get_text_embedding(query)
+    _track_embedding_inline("text-embedding-v2", len(query))
 
     results = _collection.query(
         query_embeddings=[query_embedding],
