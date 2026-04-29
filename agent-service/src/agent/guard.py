@@ -5,7 +5,7 @@ import re
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 
-from src.config.settings import settings
+from src.shared.config import settings
 
 
 def _get_guard_llm():

@@ -3,9 +3,9 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
 
-from src.config.settings import settings
+from src.shared.config import settings
 from src.agent.tools import tools
-from src.tracking.callback import tracking_callback
+from src.shared.tracking.callback import tracking_callback
 
 
 def get_llm():

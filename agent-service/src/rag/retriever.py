@@ -10,11 +10,11 @@ from llama_index.core.schema import TextNode
 from llama_index.embeddings.dashscope import DashScopeEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
-from src.config.settings import settings as app_settings
+from src.shared.config import settings as app_settings
 from src.config.client import redis_client
 from src.config.gray_config import gray_config
-from src.tracking.recorder import track_embedding
-from src.auth.deps import _tracking_ctx
+from src.shared.tracking.recorder import track_embedding
+from src.shared.security import _tracking_ctx
 
 # LlamaIndex 全局 embedding 配置
 Settings.embed_model = DashScopeEmbedding(

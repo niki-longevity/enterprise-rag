@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from src.db.session import SessionLocal
 from src.domain.models import User
 from src.db.mapper import BaseMapper
-from src.config.settings import settings
+from src.shared.config import settings
 
 router = APIRouter()
 

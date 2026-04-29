@@ -1,6 +1,6 @@
 import redis
 from minio import Minio
-from src.config.settings import settings
+from src.shared.config import settings
 
 redis_client = redis.Redis(
     host=settings.redis_host,

@@ -61,7 +61,17 @@
       "Bash(npx tsc *)",
       "Bash(\"C:/Users/15219/.conda/envs/pytorch/python.exe\" -m uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload)",
       "Bash(npm run *)",
-      "Bash(start *)"
+      "Bash(start *)",
+      "Bash(cp src/config/settings.py src/shared/config.py)",
+      "Bash(cp src/auth/deps.py src/shared/security.py)",
+      "Bash(cp src/auth/quota_defaults.py src/shared/quota_defaults.py)",
+      "Bash(cp src/skills/warm_up.py src/shared/skills.py)",
+      "Bash(cp -r src/tracking/* src/shared/tracking/)",
+      "Bash(sed -i 's/from src\\\\.config\\\\.settings import/from src.shared.config import/g' src/**/*.py src/**/**/*.py)",
+      "Bash(sed -i 's/from src\\\\.auth\\\\.deps import/from src.shared.security import/g' src/**/*.py src/**/**/*.py)",
+      "Bash(sed -i 's/from src\\\\.auth\\\\.quota_defaults import/from src.shared.quota_defaults import/g' src/**/*.py src/**/**/*.py)",
+      "Bash(sed -i 's/from src\\\\.tracking\\\\.callback import/from src.shared.tracking.callback import/g' src/**/*.py src/**/**/*.py)",
+      "Bash(sed -i 's/from src\\\\.tracking\\\\.recorder import/from src.shared.tracking.recorder import/g' src/**/*.py src/**/**/*.py)"
     ]
   },
   "enabledPlugins": {

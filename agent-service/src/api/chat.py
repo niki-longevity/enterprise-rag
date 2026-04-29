@@ -8,7 +8,7 @@ from typing import List, Optional, AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agent.graph import agent_graph
 from src.agent.nodes import get_llm
-from src.auth.deps import get_current_user, _tracking_ctx
+from src.shared.security import get_current_user, _tracking_ctx
 from src.auth.quota import check_quota
 from src.agent.guard import check_message
 from src.db.session import SessionLocal, get_db

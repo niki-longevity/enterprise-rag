@@ -5,7 +5,7 @@ Elasticsearch BM25 关键词检索
 """
 from typing import List, Optional
 from elasticsearch import Elasticsearch
-from src.config.settings import settings as app_settings
+from src.shared.config import settings as app_settings
 from src.config.client import redis_client
 from src.config.gray_config import gray_config
 

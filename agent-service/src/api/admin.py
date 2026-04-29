@@ -12,7 +12,7 @@ from src.domain.models import User, RoleQuotaConfig, LLMCallLog
 from src.db.mapper import BaseMapper
 from src.db.session import engine
 from src.config.client import redis_client
-from src.auth.quota_defaults import QUOTA_DEFAULTS
+from src.shared.quota_defaults import QUOTA_DEFAULTS
 from sqlalchemy import text
 
 router = APIRouter()

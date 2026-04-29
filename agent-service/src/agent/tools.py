@@ -4,10 +4,10 @@ from langchain_core.tools import tool
 
 from src.es.searcher import bm25_search
 from src.rag.retriever import search, search_no_rerank
-from src.config.settings import settings
-from src.skills.warm_up import get_skill_content
-from src.tracking.recorder import track_embedding
-from src.auth.deps import _tracking_ctx
+from src.shared.config import settings
+from src.shared.skills import get_skill_content
+from src.shared.tracking.recorder import track_embedding
+from src.shared.security import _tracking_ctx
 
 
 @tool

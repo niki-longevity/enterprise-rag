@@ -5,7 +5,7 @@ from pathlib import Path
 from minio.error import S3Error
 
 from src.config.client import minio_client
-from src.config.settings import settings
+from src.shared.config import settings
 
 BUCKET = settings.minio_bucket_policies
 POLICIES_DIR = Path(settings.policies_data_dir)

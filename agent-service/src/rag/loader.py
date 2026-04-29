@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List
 from llama_index.core import SimpleDirectoryReader
-from src.config.settings import settings
+from src.shared.config import settings
 
 
 def load_policy_documents(data_dir: str = None) -> List[dict]:

@@ -5,8 +5,8 @@ from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, Depends
 
-from src.auth.deps import get_current_user
-from src.auth.quota_defaults import QUOTA_DEFAULTS
+from src.shared.security import get_current_user
+from src.shared.quota_defaults import QUOTA_DEFAULTS
 from src.config.client import redis_client
 from src.db.session import SessionLocal
 from src.domain.models import User, RoleQuotaConfig

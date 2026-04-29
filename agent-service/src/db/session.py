@@ -1,7 +1,7 @@
 # 数据库会话管理
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.config.settings import settings
+from src.shared.config import settings
 
 DATABASE_URL = f"mysql+pymysql://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}?charset=utf8mb4"
 
