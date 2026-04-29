@@ -88,3 +88,78 @@ async def check_quota(user_id: str = Depends(get_current_user)) -> dict:
         "daily_tokens_used": tok_used,
         "rpm_limit": quota["rpm_requests"],
     }
+
+
+# ── 角色配额 CRUD（供 admin 路由调用） ──────────────────
+
+def list_role_quotas() -> dict:
+    """列出所有角色的配额配置（合并默认值 + DB 覆盖）"""
+    db = SessionLocal()
+    try:
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_all()
+        result = {}
+        for role, defaults in QUOTA_DEFAULTS.items():
+            entry = {"role": role, "daily_requests": defaults["daily_requests"],
+                     "daily_tokens": defaults["daily_tokens"], "rpm_requests": defaults["rpm_requests"],
+                     "source": "default"}
+            for c in configs:
+                if c.role == role:
+                    entry["daily_requests"] = c.daily_requests
+                    entry["daily_tokens"] = c.daily_tokens
+                    entry["rpm_requests"] = c.rpm_requests
+                    entry["source"] = "custom"
+                    break
+            result[role] = entry
+        return result
+    finally:
+        db.close()
+
+
+def update_role_quota(role: str, daily_requests: int, daily_tokens: int, rpm_requests: int):
+    """更新角色配额（写 DB + 更新 Redis）"""
+    if role not in QUOTA_DEFAULTS:
+        raise ValueError(f"无效角色: {role}")
+
+    db = SessionLocal()
+    try:
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_by_field("role", role)
+        if configs:
+            c = configs[0]
+            c.daily_requests = daily_requests
+            c.daily_tokens = daily_tokens
+            c.rpm_requests = rpm_requests
+            db.commit()
+        else:
+            mapper.save(RoleQuotaConfig(
+                role=role, daily_requests=daily_requests,
+                daily_tokens=daily_tokens, rpm_requests=rpm_requests,
+            ))
+    finally:
+        db.close()
+
+    redis_client.set(f"quota:config:{role}", json.dumps({
+        "daily_requests": daily_requests,
+        "daily_tokens": daily_tokens,
+        "rpm_requests": rpm_requests,
+    }))
+
+
+def reset_role_quota(role: str):
+    """重置角色配额为默认值"""
+    if role not in QUOTA_DEFAULTS:
+        raise ValueError(f"无效角色: {role}")
+
+    db = SessionLocal()
+    try:
+        mapper = BaseMapper(RoleQuotaConfig, db)
+        configs = mapper.list_by_field("role", role)
+        if configs:
+            db.delete(configs[0])
+            db.commit()
+    finally:
+        db.close()
+
+    defaults = QUOTA_DEFAULTS[role]
+    redis_client.set(f"quota:config:{role}", json.dumps(dict(defaults)))

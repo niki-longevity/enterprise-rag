@@ -86,7 +86,8 @@
       "Bash(cp src/api/auth.py src/presentation/auth.py)",
       "Bash(cp src/api/admin.py src/presentation/admin.py)",
       "Bash(cp src/api/webhook.py src/presentation/webhook.py)",
-      "Bash(sed -i 's/from src\\\\.api\\\\.\\\\\\(chat\\\\|auth\\\\|admin\\\\|webhook\\\\\\) import/from src.presentation.\\\\1 import/g' src/main.py)"
+      "Bash(sed -i 's/from src\\\\.api\\\\.\\\\\\(chat\\\\|auth\\\\|admin\\\\|webhook\\\\\\) import/from src.presentation.\\\\1 import/g' src/main.py)",
+      "Bash(wc *)"
     ]
   },
   "enabledPlugins": {
