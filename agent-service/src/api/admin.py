@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func as sa_func
 
 from src.db.session import SessionLocal
-from src.db.models import User, RoleQuotaConfig, LLMCallLog
+from src.domain.models import User, RoleQuotaConfig, LLMCallLog
 from src.db.mapper import BaseMapper
 from src.db.session import engine
 from src.config.client import redis_client

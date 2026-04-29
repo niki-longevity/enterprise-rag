@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from src.db.session import SessionLocal
-from src.db.models import User
+from src.domain.models import User
 from src.db.mapper import BaseMapper
 from src.config.settings import settings
 

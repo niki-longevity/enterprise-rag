@@ -13,7 +13,7 @@ from src.auth.quota import check_quota
 from src.agent.guard import check_message
 from src.db.session import SessionLocal, get_db
 from src.db.mapper import ChatHistoryMapper
-from src.db.models import ChatHistory
+from src.domain.models import ChatHistory
 from src.config.client import redis_client
 import json
 import threading

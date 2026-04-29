@@ -45,12 +45,12 @@ class ChatHistoryMapper(BaseMapper):
     """ChatHistory Mapper"""
 
     def __init__(self, db: Session):
-        from src.db.models import ChatHistory
+        from src.domain.models import ChatHistory
         super().__init__(ChatHistory, db)
 
     def list_by_session_id(self, session_id: str):
         """根据会话ID查询，按创建时间升序"""
-        from src.db.models import ChatHistory
+        from src.domain.models import ChatHistory
         return self.db.execute(
             select(ChatHistory)
             .where(ChatHistory.session_id == session_id)
@@ -59,7 +59,7 @@ class ChatHistoryMapper(BaseMapper):
 
     def list_session_ids_by_user_id(self, user_id: str):
         """获取用户的会话ID列表，按最后消息时间倒序"""
-        from src.db.models import ChatHistory
+        from src.domain.models import ChatHistory
         from sqlalchemy import func
 
         subquery = (
