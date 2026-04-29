@@ -60,3 +60,7 @@ build/
 # Vector DB
 chroma_db/
 *.chroma/
+
+docs/
+.claude
+CLAUDE.md
