@@ -2,8 +2,8 @@
 from dashscope import TextReRank
 from langchain_core.tools import tool
 
-from src.es.searcher import bm25_search
-from src.rag.retriever import search, search_no_rerank
+from src.infrastructure.search.elastic import bm25_search
+from src.infrastructure.search.chroma import search, search_no_rerank
 from src.shared.config import settings
 from src.shared.skills import get_skill_content
 from src.shared.tracking.recorder import track_embedding

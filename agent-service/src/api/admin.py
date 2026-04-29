@@ -7,11 +7,11 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func as sa_func
 
-from src.db.session import SessionLocal
+from src.infrastructure.database.session import SessionLocal
 from src.domain.models import User, RoleQuotaConfig, LLMCallLog
-from src.db.mapper import BaseMapper
-from src.db.session import engine
-from src.config.client import redis_client
+from src.infrastructure.database.mapper import BaseMapper
+from src.infrastructure.database.session import engine
+from src.infrastructure.cache.redis import redis_client
 from src.shared.quota_defaults import QUOTA_DEFAULTS
 from sqlalchemy import text
 

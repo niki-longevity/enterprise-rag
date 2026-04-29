@@ -5,7 +5,7 @@ from urllib.parse import unquote_plus
 
 from fastapi import APIRouter, Request, BackgroundTasks
 
-from src.rag.gray_updater import handle_file_update, handle_file_delete
+from src.infrastructure.search.gray_updater import handle_file_update, handle_file_delete
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

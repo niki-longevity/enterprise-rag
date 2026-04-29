@@ -2,7 +2,7 @@
 import json
 import time
 from pathlib import Path
-from src.db.session import SessionLocal
+from src.infrastructure.database.session import SessionLocal
 from src.domain.models import LLMCallLog
 
 

@@ -7,10 +7,10 @@ from fastapi import HTTPException, Depends
 
 from src.shared.security import get_current_user
 from src.shared.quota_defaults import QUOTA_DEFAULTS
-from src.config.client import redis_client
-from src.db.session import SessionLocal
+from src.infrastructure.cache.redis import redis_client
+from src.infrastructure.database.session import SessionLocal
 from src.domain.models import User, RoleQuotaConfig
-from src.db.mapper import BaseMapper
+from src.infrastructure.database.mapper import BaseMapper
 
 
 def _load_role_quota(role: str) -> dict:

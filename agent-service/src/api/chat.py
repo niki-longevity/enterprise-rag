@@ -11,10 +11,10 @@ from src.agent.nodes import get_llm
 from src.shared.security import get_current_user, _tracking_ctx
 from src.auth.quota import check_quota
 from src.agent.guard import check_message
-from src.db.session import SessionLocal, get_db
-from src.db.mapper import ChatHistoryMapper
+from src.infrastructure.database.session import SessionLocal, get_db
+from src.infrastructure.database.mapper import ChatHistoryMapper
 from src.domain.models import ChatHistory
-from src.config.client import redis_client
+from src.infrastructure.cache.redis import redis_client
 import json
 import threading
 

@@ -2,10 +2,17 @@
 from io import BytesIO
 from pathlib import Path
 
+from minio import Minio
 from minio.error import S3Error
 
-from src.infrastructure.storage.minio import minio_client
 from src.shared.config import settings
+
+minio_client = Minio(
+    settings.minio_host,
+    access_key=settings.minio_access_key,
+    secret_key=settings.minio_secret_key,
+    secure=False,
+)
 
 BUCKET = settings.minio_bucket_policies
 POLICIES_DIR = Path(settings.policies_data_dir)

@@ -5,9 +5,9 @@ import jwt
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from src.db.session import SessionLocal
+from src.infrastructure.database.session import SessionLocal
 from src.domain.models import User
-from src.db.mapper import BaseMapper
+from src.infrastructure.database.mapper import BaseMapper
 from src.shared.config import settings
 
 router = APIRouter()
