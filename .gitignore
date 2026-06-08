@@ -64,3 +64,4 @@ chroma_db/
 docs/
 .claude
 CLAUDE.md
+.codegraph

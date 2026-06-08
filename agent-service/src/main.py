@@ -1,18 +1,21 @@
 # FastAPI启动入口
 # 启动员工助手服务，监听8001端口，前端直接调用此服务
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from src.shared.config import settings
 from src.presentation import chat, webhook, auth, admin
 
-app = FastAPI(title="Employee Assistant Agent", version="1.0.0")
 
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     from src.application.quota import seed_quota_config
     seed_quota_config()
+    yield
+
+
+app = FastAPI(title="Employee Assistant Agent", version="1.0.0", lifespan=lifespan)
 
 # 注册路由
 app.include_router(chat.router, prefix="/api", tags=["chat"])

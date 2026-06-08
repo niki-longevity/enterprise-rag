@@ -36,9 +36,9 @@ class Settings(BaseSettings):
 
     # MySQL数据库配置
     db_host: str = os.getenv("DB_HOST", "localhost")
-    db_port: int = int(os.getenv("DB_PORT", "3307"))
+    db_port: int = int(os.getenv("DB_PORT", "3306"))
     db_user: str = os.getenv("DB_USER", "root")
-    db_password: str = os.getenv("DB_PASSWORD", "88888888")
+    db_password: str = os.getenv("DB_PASSWORD", "root")
     db_name: str = os.getenv("DB_NAME", "db_ea")
 
     # Redis数据库配置
