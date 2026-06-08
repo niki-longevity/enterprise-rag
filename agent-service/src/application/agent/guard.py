@@ -11,9 +11,9 @@ from src.shared.tracking.callback import tracking_callback
 
 def _get_guard_llm():
     return ChatOpenAI(
-        model=settings.tencent_model,
-        api_key=settings.tencent_api_key,
-        base_url=settings.tencent_base_url,
+        model=settings.deepseek_model,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
         callbacks=[tracking_callback],
         temperature=0.5,
     )

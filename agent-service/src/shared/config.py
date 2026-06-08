@@ -2,6 +2,7 @@
 # 统一管理Agent服务的配置项，从系统环境变量读取
 import os
 from pathlib import Path
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -17,10 +18,10 @@ class Settings(BaseSettings):
     # 阿里云千问API配置（从系统环境变量DASHSCOPE_API_KEY读取）
     dashscope_api_key: str = os.getenv("DASHSCOPE_API_KEY", "")
 
-    # DeepSeek API配置（从系统环境变量DEEPSEEK_API_KEY读取）
-    tencent_api_key: str = os.getenv("Tencent_API_KEY")
-    tencent_base_url: str = "https://api.lkeap.cloud.tencent.com/plan/v3"
-    tencent_model: str = "hy3-preview"
+    # DeepSeek API配置（pydantic 显式绑定 DEEPSEEK_API_KEY，避免 field name 匹配到 DEEPSEEK_API_KEY）
+    deepseek_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com", validation_alias="DEEPSEEK_BASE_URL")
+    deepseek_model: str = Field(default="deepseek-v4-flash", validation_alias="DEEPSEEK_MODEL")
 
     # 阿里云Embedding模型
     dashscope_embedding_model: str = "text-embedding-v2"

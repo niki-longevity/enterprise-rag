@@ -11,9 +11,9 @@ from src.shared.tracking.callback import tracking_callback
 def get_llm():
     """获取LLM实例"""
     return ChatOpenAI(
-        model=settings.tencent_model,
-        api_key=settings.tencent_api_key,
-        base_url=settings.tencent_base_url,
+        model=settings.deepseek_model,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
         temperature=0.7,
         callbacks=[tracking_callback],
     )
