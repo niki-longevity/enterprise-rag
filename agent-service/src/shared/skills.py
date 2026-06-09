@@ -1,9 +1,8 @@
 """
 Warm up skills: 将skills目录下的改写指导文件加载到Redis（string类型）
+redis_client 惰性加载，避免 shared 层模块级依赖 infrastructure。
 """
 from pathlib import Path
-
-from src.infrastructure.cache.redis import redis_client
 
 SKILLS_DIR = Path(__file__).parent
 
@@ -17,8 +16,15 @@ _FILE_TO_REDIS_KEY = {filename: redis_key for filename, redis_key in FILES}
 _REDIS_KEY_TO_FILE = {redis_key: filename for filename, redis_key in FILES}
 
 
+def _get_redis():
+    """惰性加载 redis_client，避免模块导入时依赖 infrastructure 层"""
+    from src.infrastructure.cache.redis import redis_client
+    return redis_client
+
+
 def warm_up():
     """将改写指导文件加载到Redis"""
+    redis_client = _get_redis()
     success = 0
     for filename, redis_key in FILES:
         try:
@@ -36,6 +42,7 @@ def warm_up():
 
 def get_skill_content(redis_key: str) -> str:
     """获取skill内容：优先Redis，未命中则读本地文件并写回Redis"""
+    redis_client = _get_redis()
     content = redis_client.get(redis_key)
     if content:
         return content

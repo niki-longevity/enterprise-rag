@@ -1,6 +1,6 @@
 # 对话编排服务
 # 整个对话流程的"指挥中心"：记忆管理、防注入检查、图调用、回复持久化
-# presentation/chat.py 的路由只做参数绑定，真正的业务逻辑都在这里
+# controller/chat.py 的路由只做参数绑定，真正的业务逻辑都在这里
 
 import json
 import threading
@@ -9,14 +9,15 @@ from typing import Optional, AsyncGenerator
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langgraph.errors import GraphRecursionError
 
-from src.application.agent.graph import agent_graph
-from src.application.agent.nodes import get_llm
-from src.application.agent.guard import check_message
+from src.service.agent.graph import agent_graph
+from src.service.agent.nodes import get_llm
+from src.service.agent.guard import check_message
 from src.shared.security import _tracking_ctx
-from src.infrastructure.database.session import SessionLocal
-from src.infrastructure.database.mapper import ChatHistoryMapper
-from src.domain.models import ChatHistory
+from src.dao.session import SessionLocal
+from src.dao.mapper import ChatHistoryMapper
+from src.model.models import ChatHistory
 from src.infrastructure.cache.redis import redis_client
 
 
@@ -117,7 +118,8 @@ async def chat_stream_impl(
     messages.append(SystemMessage(content="你是公司的政策、规定问询顾问。"
                                           "上面是与用户的历史会话，下面是用户的新问题，请确保回答内容量简练精要。"
                                           "只要是关于公司政策、规定的问询，严格根据检索到的内容来回答，严禁杜撰回答，不知道就告诉用户不知道、不了解之类的。"
-                                        "如果需要检索政策，请先对用户的提问进行合适的 Query 改写。"))
+                                          "简单、口语化的短问题直接用 simple_retrieve_policy 搜索，不要反复调用 view_file。"
+                                          "最多调用搜索工具 2 次，然后必须给出最终回答。"))
     messages.append(HumanMessage(content=message))
 
     # ── 4. 构建图初始状态 + 保存用户消息 ──────────────
@@ -151,7 +153,7 @@ async def chat_stream_impl(
             # ── 6. ReAct 图执行（流式） ──
             # 设置追踪上下文，cost tracking callback 据此记录 token/成本
             _tracking_ctx.set({"user_id": userId, "session_id": session_id, "node_type": "agent"})
-            async for event in agent_graph.astream_events(initial_state, version="v2", config={"recursion_limit": 8}):
+            async for event in agent_graph.astream_events(initial_state, version="v2", config={"recursion_limit": 15}):
                 if event["event"] == "on_chat_model_stream":
                     chunk = event["data"]["chunk"].content
                     if chunk:
@@ -171,6 +173,15 @@ async def chat_stream_impl(
 
             yield f"data: {json.dumps({'type': 'end', 'session_id': session_id}, ensure_ascii=False)}\n\n"
 
+        except GraphRecursionError:
+            # Agent 陷入循环（反复调工具不给出最终答案），用已有结果兜底
+            print(f"聊天接口异常：Agent 超过递归上限，已兜底")
+            if full_reply:
+                yield f"data: {json.dumps({'type': 'content', 'content': full_reply}, ensure_ascii=False)}\n\n"
+            else:
+                fallback = "抱歉，处理您的问题时遇到了一些困难。请换个方式提问，或者联系 HR 部门获取帮助。"
+                yield f"data: {json.dumps({'type': 'content', 'content': fallback}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'end', 'session_id': session_id}, ensure_ascii=False)}\n\n"
         except Exception as e:
             print(f"聊天接口异常：{str(e)}")
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
@@ -180,3 +191,23 @@ async def chat_stream_impl(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"}
     )
+
+
+def get_session_history(session_id: str, user_id: str) -> list:
+    """查询指定会话的历史消息"""
+    db = SessionLocal()
+    try:
+        mapper = ChatHistoryMapper(db)
+        return mapper.list_by_session_id(session_id)
+    finally:
+        db.close()
+
+
+def get_user_sessions(user_id: str) -> list:
+    """查询用户的会话 ID 列表，按最后消息时间倒序"""
+    db = SessionLocal()
+    try:
+        mapper = ChatHistoryMapper(db)
+        return mapper.list_session_ids_by_user_id(user_id)
+    finally:
+        db.close()

@@ -1,7 +1,7 @@
 # LangGraph图定义 - ReAct模式
 from langgraph.graph import StateGraph, END
-from src.application.agent.state import AgentState
-from src.application.agent.nodes import agent_node, tool_node, should_continue
+from src.service.agent.state import AgentState
+from src.service.agent.nodes import agent_node, tool_node, should_continue
 
 
 def create_agent_graph():

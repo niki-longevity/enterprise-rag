@@ -1,25 +1,16 @@
-# 认证API路由 - 注册/登录
+"""认证服务：注册、登录、JWT 令牌生成"""
 import datetime
 import bcrypt
 import jwt
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-
-from src.infrastructure.database.session import SessionLocal
-from src.domain.models import User
-from src.infrastructure.database.mapper import BaseMapper
+from fastapi import HTTPException
+from src.dao.session import SessionLocal
+from src.model.models import User
+from src.dao.mapper import BaseMapper
 from src.shared.config import settings
-
-router = APIRouter()
-
-
-class AuthRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=20)
-    password: str = Field(..., min_length=6, max_length=50)
 
 
 def _create_token(user: User) -> str:
-    """生成 JWT，有效期 7 天"""
+    """生成 JWT，有效期由配置决定"""
     payload = {
         "user_id": user.id,
         "username": user.username,
@@ -28,20 +19,19 @@ def _create_token(user: User) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-@router.post("/register")
-def register(req: AuthRequest):
+def register_user(username: str, password: str) -> dict:
     """注册新用户，返回 JWT token"""
     db = SessionLocal()
     try:
         mapper = BaseMapper(User, db)
-        existing = mapper.list_by_field("username", req.username)
+        existing = mapper.list_by_field("username", username)
         if existing:
             raise HTTPException(status_code=409, detail="Username already exists")
 
         user = User(
-            username=req.username,
+            username=username,
             password_hash=bcrypt.hashpw(
-                req.password.encode('utf-8'), bcrypt.gensalt()
+                password.encode('utf-8'), bcrypt.gensalt()
             ).decode('utf-8'),
         )
         mapper.save(user)
@@ -50,15 +40,14 @@ def register(req: AuthRequest):
         db.close()
 
 
-@router.post("/login")
-def login(req: AuthRequest):
-    """登录，返回 JWT token"""
+def login_user(username: str, password: str) -> dict:
+    """登录验证，返回 JWT token"""
     db = SessionLocal()
     try:
         mapper = BaseMapper(User, db)
-        users = mapper.list_by_field("username", req.username)
+        users = mapper.list_by_field("username", username)
         if not users or not bcrypt.checkpw(
-            req.password.encode('utf-8'),
+            password.encode('utf-8'),
             users[0].password_hash.encode('utf-8')
         ):
             raise HTTPException(status_code=401, detail="Invalid username or password")

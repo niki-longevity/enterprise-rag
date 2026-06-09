@@ -1,7 +1,7 @@
 # 成本追踪统计查询
 from datetime import date, datetime, timedelta
 
-from src.infrastructure.database.session import engine
+from src.dao.session import engine
 from sqlalchemy import text
 
 

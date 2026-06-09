@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
 
 from src.shared.config import settings
-from src.application.agent.tools import tools
+from src.service.agent.tools import tools
 from src.shared.tracking.callback import tracking_callback
 
 

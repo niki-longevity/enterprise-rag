@@ -5,12 +5,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from src.shared.config import settings
-from src.presentation import chat, webhook, auth, admin
+from src.controller import chat, webhook, auth, admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from src.application.quota import seed_quota_config
+    from src.service.quota import seed_quota_config
     seed_quota_config()
     yield
 

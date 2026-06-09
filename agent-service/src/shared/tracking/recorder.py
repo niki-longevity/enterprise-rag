@@ -1,12 +1,10 @@
 # DB 写入 + 手动埋点函数
 # record_llm_call: 同步版，供同步上下文使用（tools.py 的 rerank 埋点）
 # async_record_llm_call: 异步版，把同步 DB 写丢进线程池，不阻塞事件循环
+# SessionLocal 和 LLMCallLog 在 _sync_write 内惰性导入，避免 shared 层模块级依赖 dao/model
 import asyncio
 import json
 from pathlib import Path
-
-from src.infrastructure.database.session import SessionLocal
-from src.domain.models import LLMCallLog
 
 
 _pricing = None
@@ -29,6 +27,8 @@ def _calc_cost(model_name: str, input_tokens: int, output_tokens: int) -> float:
 
 def _sync_write(**kwargs):
     """同步 DB 写入，会被 run_in_executor 丢到线程池执行"""
+    from src.dao.session import SessionLocal
+    from src.model.models import LLMCallLog
     db = SessionLocal()
     try:
         log = LLMCallLog(**kwargs)
